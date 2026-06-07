@@ -1,0 +1,132 @@
+import uuid
+from datetime import datetime, date
+from sqlalchemy import (
+    String, ForeignKey, DateTime, Date, Boolean, Integer,
+    Text, Enum as SAEnum, UniqueConstraint
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from app.db.database import Base
+import enum
+
+
+class PlatformType(str, enum.Enum):
+    airbnb = "airbnb"
+    agoda = "agoda"
+    bookingcom = "bookingcom"
+    zaritalk = "zaritalk"
+    wehome = "wehome"
+    ncostay = "ncostay"
+    liveanywhere = "liveanywhere"
+    m33 = "33m2"
+    manual = "manual"
+
+
+class BookingStatus(str, enum.Enum):
+    confirmed = "confirmed"
+    blocked = "blocked"
+    cancelled = "cancelled"
+    tentative = "tentative"
+
+
+class PlanType(str, enum.Enum):
+    trial = "trial"
+    basic = "basic"
+    pro = "pro"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    phone: Mapped[str | None] = mapped_column(String(20))
+    plan: Mapped[PlanType] = mapped_column(SAEnum(PlanType), default=PlanType.trial)
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    toss_customer_key: Mapped[str | None] = mapped_column(String(255))
+    toss_billing_key: Mapped[str | None] = mapped_column(String(500))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    rooms: Mapped[list["Room"]] = relationship("Room", back_populates="user", cascade="all, delete-orphan")
+
+
+class Room(Base):
+    __tablename__ = "rooms"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    address: Mapped[str | None] = mapped_column(String(500))
+    description: Mapped[str | None] = mapped_column(Text)
+    color: Mapped[str] = mapped_column(String(7), default="#3B82F6")  # hex color
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    user: Mapped["User"] = relationship("User", back_populates="rooms")
+    connections: Mapped[list["PlatformConnection"]] = relationship(
+        "PlatformConnection", back_populates="room", cascade="all, delete-orphan"
+    )
+    bookings: Mapped[list["Booking"]] = relationship(
+        "Booking", back_populates="room", cascade="all, delete-orphan"
+    )
+
+
+class PlatformConnection(Base):
+    __tablename__ = "platform_connections"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    room_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
+    platform: Mapped[PlatformType] = mapped_column(SAEnum(PlatformType), nullable=False)
+    ical_url: Mapped[str | None] = mapped_column(Text)
+    nickname: Mapped[str | None] = mapped_column(String(100))  # 플랫폼 내 숙소명
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sync_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("room_id", "platform", name="uq_room_platform"),)
+
+    room: Mapped["Room"] = relationship("Room", back_populates="connections")
+    bookings: Mapped[list["Booking"]] = relationship(
+        "Booking", back_populates="connection", cascade="all, delete-orphan"
+    )
+
+
+class Booking(Base):
+    __tablename__ = "bookings"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    room_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
+    connection_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("platform_connections.id"))
+    ical_uid: Mapped[str | None] = mapped_column(String(500))  # iCal UID for dedup
+    platform: Mapped[PlatformType] = mapped_column(SAEnum(PlatformType), default=PlatformType.manual)
+    summary: Mapped[str | None] = mapped_column(String(500))   # 예약자명 or 예약번호
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)
+    end_date: Mapped[date] = mapped_column(Date, nullable=False)
+    guest_name: Mapped[str | None] = mapped_column(String(200))
+    guest_count: Mapped[int | None] = mapped_column(Integer)
+    notes: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[BookingStatus] = mapped_column(SAEnum(BookingStatus), default=BookingStatus.confirmed)
+    raw_ical: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("connection_id", "ical_uid", name="uq_connection_ical_uid"),)
+
+    room: Mapped["Room"] = relationship("Room", back_populates="bookings")
+    connection: Mapped["PlatformConnection | None"] = relationship("PlatformConnection", back_populates="bookings")
+
+
+class Conflict(Base):
+    __tablename__ = "conflicts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    room_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
+    booking_id_1: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"))
+    booking_id_2: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"))
+    detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notified: Mapped[bool] = mapped_column(Boolean, default=False)

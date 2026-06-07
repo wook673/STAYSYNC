@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* FullCalendar 커스텀 스타일 */
+.fc {
+  font-family: inherit !important;
+}
+
+.fc .fc-toolbar-title {
+  font-size: 1.1rem !important;
+  font-weight: 600 !important;
+}
+
+.fc .fc-button {
+  @apply bg-blue-600 border-blue-600 text-white text-sm px-3 py-1.5 rounded-md;
+}
+
+.fc .fc-button:hover {
+  @apply bg-blue-700;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  @apply bg-blue-800;
+}
+
+.fc .fc-daygrid-event {
+  @apply rounded text-xs font-medium px-1 cursor-pointer;
+}
+
+.fc .fc-event-conflict {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.fc .fc-day-today {
+  @apply bg-blue-50 !important;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  @apply border-border;
+}
