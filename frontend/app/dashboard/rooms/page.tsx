@@ -7,6 +7,7 @@ import { roomsApi, calendarApi } from "@/lib/api"
 import { PLATFORM_LABELS, PLATFORM_COLORS, ICAL_GUIDES } from "@/lib/utils"
 import { AddRoomModal } from "@/components/rooms/AddRoomModal"
 import { AddConnectionModal } from "@/components/rooms/AddConnectionModal"
+import { ExtensionConnectCard } from "@/components/rooms/ExtensionConnectCard"
 import { format } from "date-fns"
 import { ko } from "date-fns/locale"
 
@@ -82,6 +83,9 @@ export default function RoomsPage() {
           방 추가
         </button>
       </div>
+
+      {/* 확장 기반 연결 (33m2·엔코·리브애니웨어·자리톡) */}
+      <ExtensionConnectCard />
 
       {rooms.length === 0 ? (
         <div className="border-2 border-dashed rounded-2xl p-12 text-center">

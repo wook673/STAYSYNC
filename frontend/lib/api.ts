@@ -69,6 +69,11 @@ export const calendarApi = {
   deleteBooking: (bookingId: string) => api.delete(`/api/calendar/bookings/${bookingId}`),
 }
 
+export const extensionApi = {
+  // 확장 기반(33m2·엔코·리브애니웨어·자리톡) 연결 목록 + 재인증 필요 여부
+  connections: () => api.get("/api/extension/connections"),
+}
+
 export const billingApi = {
   pricing: () => api.get("/api/billing/pricing"),
   subscribe: (authKey: string) => api.post("/api/billing/subscribe", { auth_key: authKey }),
