@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>staySync 연결</title>
+  </head>
+  <body>
+    <header class="hdr">
+      <div class="logo">stay<span>Sync</span></div>
+      <div class="sub">플랫폼 연결 도우미</div>
+    </header>
+
+    <div id="auth-warn" class="warn hidden">
+      staySync에 먼저 로그인해야 합니다.
+      <a href="http://localhost:3000/auth/login" target="_blank">로그인하기</a>
+    </div>
+
+    <ul id="platform-list" class="list"></ul>
+
+    <p class="note">
+      ⓘ 각 플랫폼에 <b>내 계정으로 로그인</b>한 뒤 연결을 누르세요. 비밀번호는
+      수집하지 않으며, 이미 로그인된 <b>내 세션 토큰</b>만 staySync로 전달됩니다.
+    </p>
+
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

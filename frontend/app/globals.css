@@ -2,16 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * staySync 테마 = Cal.com(구조) + Airbnb Rausch(보강색)
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --border: 214.3 31.8% 91.4%;
-    --radius: 0.5rem;
+    --background: 0 0% 100%; /* canvas #ffffff */
+    --foreground: 0 0% 7%; /* ink #111111 */
+    --primary: 347 100% 61%; /* Rausch #ff385c */
+    --primary-foreground: 0 0% 100%;
+    --muted: 0 0% 96%; /* surface-card #f5f5f5 */
+    --muted-foreground: 220 9% 46%; /* #6b7280 */
+    --border: 220 13% 91%; /* #e5e7eb */
+    --radius: 0.75rem; /* Cal.com 카드 12px */
+    --font-inter: "Inter", system-ui, sans-serif;
   }
 
   * {
@@ -19,10 +23,27 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Cal.com 디스플레이 타이포: Inter + 타이트 트래킹 + weight 600 */
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.025em;
+  }
+  h1 {
+    letter-spacing: -0.04em;
   }
 }
 
-/* FullCalendar 커스텀 스타일 */
+/* Cal.com 다크 푸터 (전 페이지 하단 마감용) */
+.footer-dark {
+  background-color: #101010;
+  color: #a1a1aa;
+}
+
+/* ───────── FullCalendar 커스텀 (Cal 잉크 버튼 + Rausch 강조) ───────── */
 .fc {
   font-family: inherit !important;
 }
@@ -30,37 +51,72 @@
 .fc .fc-toolbar-title {
   font-size: 1.1rem !important;
   font-weight: 600 !important;
+  letter-spacing: -0.02em;
+  color: #111111;
 }
 
+/* 버튼: Cal.com 근검은 잉크 */
 .fc .fc-button {
-  @apply bg-blue-600 border-blue-600 text-white text-sm px-3 py-1.5 rounded-md;
+  background-color: #111111 !important;
+  border-color: #111111 !important;
+  color: #ffffff !important;
+  font-size: 0.875rem !important;
+  font-weight: 600 !important;
+  padding: 0.4rem 0.85rem !important;
+  border-radius: 8px !important;
+  text-transform: none !important;
+  box-shadow: none !important;
 }
 
 .fc .fc-button:hover {
-  @apply bg-blue-700;
+  background-color: #242424 !important;
+  border-color: #242424 !important;
 }
 
-.fc .fc-button-primary:not(:disabled).fc-button-active {
-  @apply bg-blue-800;
+/* 활성 토글(월/주 등): Rausch */
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: #ff385c !important;
+  border-color: #ff385c !important;
+  color: #ffffff !important;
+}
+
+.fc .fc-button:focus {
+  box-shadow: 0 0 0 2px rgba(255, 56, 92, 0.35) !important;
 }
 
 .fc .fc-daygrid-event {
   @apply rounded text-xs font-medium px-1 cursor-pointer;
+  border: none;
 }
 
+/* 이중예약 이벤트: Rausch 펄스 강조 */
 .fc .fc-event-conflict {
   animation: pulse 1.5s infinite;
+  outline: 2px solid #ff385c;
+  outline-offset: -1px;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
 }
 
+/* 오늘: Rausch 연한 틴트 */
 .fc .fc-day-today {
-  @apply bg-blue-50 !important;
+  background-color: #fff1f3 !important;
 }
 
 .fc-theme-standard .fc-scrollgrid {
-  @apply border-border;
+  border-color: #e5e7eb;
+}
+
+.fc-theme-standard td,
+.fc-theme-standard th {
+  border-color: #f3f4f6;
 }

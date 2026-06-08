@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from app.routers import auth, rooms, calendar, billing
+from app.routers import auth, rooms, calendar, billing, extension
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.db.database import engine
 from app.models.models import Base
@@ -39,6 +39,7 @@ app.include_router(auth.router)
 app.include_router(rooms.router)
 app.include_router(calendar.router)
 app.include_router(billing.router)
+app.include_router(extension.router)
 
 
 @app.get("/health")

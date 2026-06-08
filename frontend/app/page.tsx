@@ -73,7 +73,7 @@ export default function LandingPage() {
       </header>
 
       {/* 히어로 */}
-      <section className="bg-gradient-to-br from-blue-50 to-indigo-50 py-24">
+      <section className="bg-gradient-to-b from-blue-50 to-white py-24">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="inline-flex items-center gap-2 bg-blue-100 text-blue-700 text-sm px-3 py-1 rounded-full mb-6">
             <Zap className="w-4 h-4" />
@@ -217,16 +217,16 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* 푸터 */}
-      <footer className="border-t bg-gray-50 py-12">
+      {/* 푸터 — Cal.com 다크 마감 */}
+      <footer className="footer-dark py-16">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center gap-2 mb-4">
             <div className="w-6 h-6 bg-blue-600 rounded flex items-center justify-center">
               <Calendar className="w-4 h-4 text-white" />
             </div>
-            <span className="font-bold text-gray-900">StaySync</span>
+            <span className="font-bold text-on-dark">StaySync</span>
           </div>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-on-dark-soft">
             © 2026 StaySync. 한국 단기임대 호스트를 위한 통합 예약 관리 서비스.
           </p>
         </div>

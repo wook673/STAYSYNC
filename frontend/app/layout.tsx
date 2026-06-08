@@ -4,7 +4,7 @@ import "./globals.css"
 import { Toaster } from "sonner"
 import { Providers } from "@/components/layout/Providers"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 export const metadata: Metadata = {
   title: "StaySync - 숙박 플랫폼 통합 관리",
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${inter.className}`}>
         <Providers>
           {children}
           <Toaster richColors position="top-right" />

@@ -85,6 +85,13 @@ class PlatformConnection(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sync_error: Mapped[str | None] = mapped_column(Text)
+    # ── 확장 기반 연결 (33m2·엔코·리브애니웨어·자리톡: 공식 API 부재) ──
+    # 사용자 본인 세션 토큰을 확장이 캡처해 전달. 암호화 저장 권장(아래 TODO).
+    connection_type: Mapped[str] = mapped_column(String(20), default="ical")  # ical | extension | manual
+    session_token: Mapped[str | None] = mapped_column(Text)  # 캡처된 세션 토큰(JSON, 암호화 대상)
+    token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    auto_maintain: Mapped[bool] = mapped_column(Boolean, default=False)
+    account_label: Mapped[str | None] = mapped_column(String(200))  # 연결된 플랫폼 계정 표시명
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
     __table_args__ = (UniqueConstraint("room_id", "platform", name="uq_room_platform"),)

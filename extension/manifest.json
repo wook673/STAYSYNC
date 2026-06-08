@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "staySync 연결 도우미",
+  "version": "0.1.0",
+  "description": "내 숙박 플랫폼(33m2·엔코스테이·리브애니웨어·자리톡) 로그인 세션을 staySync에 안전하게 연결합니다.",
+  "permissions": ["cookies", "storage", "tabs", "scripting"],
+  "host_permissions": [
+    "https://web.33m2.co.kr/*",
+    "https://host.enko.kr/*",
+    "https://m.liveanywhere.me/*",
+    "https://www.liveanywhere.me/*",
+    "https://zaritalk.com/*",
+    "https://*.zaritalk.com/*",
+    "http://localhost:3000/*",
+    "http://localhost:8000/*",
+    "https://app.staysync.kr/*",
+    "https://api.staysync.kr/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "staySync 연결"
+  },
+  "_comment_icons": "아이콘 PNG는 icons/ 폴더에 추가하세요. 없어도 로드는 됩니다.",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://web.33m2.co.kr/*",
+        "https://host.enko.kr/*",
+        "https://m.liveanywhere.me/*",
+        "https://www.liveanywhere.me/*",
+        "https://zaritalk.com/*"
+      ],
+      "js": ["content-token.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
