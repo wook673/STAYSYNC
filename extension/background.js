@@ -32,6 +32,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true; // async
   }
 
+  if (msg?.type === "GET_STAYSYNC_JWT") {
+    // 콘텐츠 스크립트(예약 DOM 파서)가 staySync JWT를 요청
+    readStaySyncJwt()
+      .then((jwt) => sendResponse({ jwt }))
+      .catch(() => sendResponse({ jwt: null }));
+    return true;
+  }
+
   if (msg?.type === "GET_STATUS") {
     getStatus()
       .then((r) => sendResponse(r))
@@ -137,6 +145,32 @@ async function injectAndReadLocalStorage(cfg) {
   } catch (e) {
     return {};
   }
+}
+
+/** staySync 웹앱 탭의 localStorage에서 JWT를 읽어온다 (확장↔웹앱 브리지) */
+async function readStaySyncJwt() {
+  const candidates = [
+    "http://localhost:3000/*",
+    "https://app.staysync.kr/*",
+  ];
+  for (const pat of candidates) {
+    const tabs = await chrome.tabs.query({ url: pat });
+    if (!tabs.length) continue;
+    try {
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId: tabs[0].id },
+        func: () =>
+          localStorage.getItem("access_token") ||
+          localStorage.getItem("staysync_token") ||
+          localStorage.getItem("token") ||
+          null,
+      });
+      if (result) return result;
+    } catch {
+      /* 무시 */
+    }
+  }
+  return null;
 }
 
 async function getStatus() {

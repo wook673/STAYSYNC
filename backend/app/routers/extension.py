@@ -11,7 +11,7 @@
 import json
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -21,7 +21,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
 from app.core.auth import get_current_user
-from app.models.models import User, Room, PlatformConnection, PlatformType
+from app.models.models import User, Room, PlatformConnection, PlatformType, Booking, BookingStatus
+from app.services.ical_engine import detect_conflicts
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/extension", tags=["extension"])
@@ -134,6 +135,134 @@ async def connect_platform(
         "room_id": str(room.id),
         "auto_maintain": payload.auto_maintain,
         "message": "연결 완료. 백그라운드 동기화가 곧 시작됩니다.",
+    }
+
+
+class ScrapedBooking(BaseModel):
+    external_id: str           # 플랫폼 예약 고유 ID (DOM에서 추출)
+    summary: Optional[str] = None  # 게스트명/예약번호
+    start_date: str            # "YYYY-MM-DD" (체크인)
+    end_date: str              # "YYYY-MM-DD" (체크아웃, exclusive)
+    status: str = "confirmed"  # confirmed | blocked | cancelled
+
+
+class SyncPayload(BaseModel):
+    platform: str
+    bookings: list[ScrapedBooking]
+    account_label: Optional[str] = None
+
+
+def _parse_date(s: str) -> date:
+    return datetime.strptime(s[:10], "%Y-%m-%d").date()
+
+
+@router.post("/sync")
+async def ingest_scraped_bookings(
+    payload: SyncPayload,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    확장 콘텐츠 스크립트가 플랫폼 화면(DOM)에서 직접 추출한 예약을 수신·저장.
+
+    33m2처럼 공식/내부 API가 없는 플랫폼의 핵심 경로:
+    엔드포인트를 호출하는 게 아니라, 사용자 본인이 로그인한 화면에 이미
+    렌더된 예약을 확장이 읽어 보내준다. (same-origin·인증된 상태)
+
+    ical_uid = "{platform}:{external_id}" 기준으로 dedup/upsert.
+    """
+    platform_type = EXT_PLATFORM_MAP.get(payload.platform)
+    if not platform_type:
+        raise HTTPException(400, f"지원하지 않는 확장 플랫폼: {payload.platform}")
+
+    # 확장 연결 찾기 (먼저 /connect 로 연결돼 있어야 함)
+    conn_stmt = (
+        select(PlatformConnection)
+        .join(Room, Room.id == PlatformConnection.room_id)
+        .where(
+            and_(
+                Room.user_id == user.id,
+                PlatformConnection.platform == platform_type,
+                PlatformConnection.connection_type == "extension",
+            )
+        )
+    )
+    conn = (await db.execute(conn_stmt)).scalar_one_or_none()
+    if not conn:
+        raise HTTPException(
+            400, "먼저 확장에서 해당 플랫폼을 연결(/connect)해주세요."
+        )
+
+    if payload.account_label:
+        conn.account_label = payload.account_label
+
+    # 기존 예약 (이 연결 소속, 취소 제외)
+    existing_stmt = select(Booking).where(
+        and_(
+            Booking.connection_id == conn.id,
+            Booking.status != BookingStatus.cancelled,
+        )
+    )
+    existing = {b.ical_uid: b for b in (await db.execute(existing_stmt)).scalars().all()}
+
+    added = updated = removed = 0
+    seen: set[str] = set()
+
+    for b in payload.bookings:
+        uid = f"{payload.platform}:{b.external_id}"
+        seen.add(uid)
+        try:
+            sd, ed = _parse_date(b.start_date), _parse_date(b.end_date)
+        except ValueError:
+            continue
+        status = {
+            "confirmed": BookingStatus.confirmed,
+            "blocked": BookingStatus.blocked,
+            "cancelled": BookingStatus.cancelled,
+        }.get(b.status, BookingStatus.confirmed)
+
+        if uid in existing:
+            row = existing[uid]
+            if row.start_date != sd or row.end_date != ed or row.status != status:
+                row.start_date, row.end_date, row.status = sd, ed, status
+                row.summary = b.summary or row.summary
+                row.updated_at = datetime.utcnow()
+                updated += 1
+        else:
+            db.add(Booking(
+                id=uuid.uuid4(),
+                room_id=conn.room_id,
+                connection_id=conn.id,
+                ical_uid=uid,
+                platform=platform_type,
+                summary=b.summary or "예약",
+                start_date=sd,
+                end_date=ed,
+                status=status,
+            ))
+            added += 1
+
+    # 화면에서 사라진 예약 → 취소 처리
+    for uid, row in existing.items():
+        if uid not in seen:
+            row.status = BookingStatus.cancelled
+            removed += 1
+
+    conn.last_synced_at = datetime.utcnow()
+    conn.sync_error = None
+    await db.flush()
+
+    # 이중예약 감지
+    conflicts = await detect_conflicts(db, conn.room_id)
+    await db.commit()
+
+    return {
+        "ok": True,
+        "platform": payload.platform,
+        "added": added,
+        "updated": updated,
+        "removed": removed,
+        "conflicts": len(conflicts),
     }
 
 

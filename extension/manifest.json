@@ -34,7 +34,7 @@
         "https://www.liveanywhere.me/*",
         "https://zaritalk.com/*"
       ],
-      "js": ["content-token.js"],
+      "js": ["content-token.js", "content-reservations.js"],
       "run_at": "document_idle"
     }
   ]

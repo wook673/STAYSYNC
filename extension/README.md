@@ -6,14 +6,24 @@ staySync 전용으로 클린룸 구현했습니다.
 
 ## 동작 원리
 
+> **중요: 33m2는 공식 API도, 공개된 내부 API도 없습니다.** 그래서 핵심 방법은
+> "엔드포인트 호출"이 아니라 **사용자가 로그인한 화면(DOM)에서 예약을 직접 읽는 것**입니다.
+
 ```
 ① 사용자가 이 확장을 설치
 ② 사용자가 자기 브라우저에서 플랫폼(web.33m2.co.kr 등)에 직접 로그인
-③ 확장이 그 로그인 세션의 인증 토큰을 획득 (쿠키 또는 localStorage)
-④ 확장 → staySync 백엔드(/api/extension/connect)로 토큰 전달
-⑤ 백엔드가 토큰으로 플랫폼 내부 웹 API를 호출해 예약 수집
-⑥ 33m2·자리톡은 토큰 자동 유지 / 엔코·리브애니웨어는 만료 시 확장에서 재연결
+③ [핵심] 콘텐츠 스크립트(content-reservations.js)가 로그인된 예약 화면의
+   DOM을 same-origin·인증 상태로 읽어 예약을 구조화
+④ 확장 → staySync 백엔드(/api/extension/sync)로 "파싱된 예약" 전달
+⑤ 백엔드가 dedup/upsert + 이중예약 감지
+⑥ 33m2·자리톡은 세션 자동 유지 / 엔코·리브애니웨어는 만료 시 확장에서 재연결
 ```
+
+### 두 가지 데이터 경로
+| 경로 | 파일 | 조건 | 비고 |
+|------|------|------|------|
+| **DOM 추출 (핵심)** | `content-reservations.js` → `POST /api/extension/sync` | API가 전혀 없어도 작동 | 33m2 기본 경로 |
+| 토큰 전달 (보조) | `background.js` → `POST /api/extension/connect` → `extension_sync.py` | **내부 JSON API가 있을 때만** | 있으면 더 효율적 |
 
 > 🔒 **보안·원칙**: 비밀번호는 절대 다루지 않습니다. 이미 로그인된
 > **사용자 본인 세션의 토큰**만 읽어 **본인 staySync 계정**으로만 전송합니다.
@@ -37,22 +47,22 @@ staySync 전용으로 클린룸 구현했습니다.
 | `content-token.js` | localStorage 기반 플랫폼 토큰 스냅샷 |
 | `popup.html/js/css` | 연결 UI |
 
-## ⚠️ 실제 작동을 위해 확정해야 할 것 (내부 API 스펙)
+## ⚠️ 실제 작동을 위해 확정해야 할 것 (DOM 선택자)
 
-각 플랫폼은 공식 API가 없으므로, **내부 웹 API 엔드포인트와 토큰 키**를
-사용자 본인 세션으로 직접 확인해야 합니다:
+33m2는 API가 없으므로 **DOM 추출이 기본**입니다. 확정할 것은 "예약 화면의
+HTML 구조"뿐입니다:
 
-1. 본인 계정으로 플랫폼 로그인 (예: `web.33m2.co.kr/host`)
-2. DevTools(F12) → **Network** 탭 → 예약/캘린더 화면 로드
-3. 예약 데이터를 반환하는 XHR/fetch 요청 확인:
-   - 요청 URL → `backend/app/services/extension_sync.py`의 `PLATFORM_ENDPOINTS.reservations`
-   - 인증 방식(쿠키 자동전송 vs `Authorization: Bearer`) → 같은 파일 `auth_header/format`
-   - 응답 JSON 구조 → `normalize_reservations()` 파서
-4. **Application** 탭 → Cookies/localStorage 에서 실제 토큰 키 확인:
-   - → `platforms.js`의 `cookieNames` / `storageKeys`
+1. 본인 계정으로 `web.33m2.co.kr/host` 로그인 → **예약 목록/캘린더 화면**으로 이동
+2. DevTools(F12) → **Elements** 탭에서 예약 한 건의 DOM 구조 확인:
+   - 예약 행을 감싸는 요소의 선택자(class/data-attr)
+   - 게스트명·체크인·체크아웃이 들어있는 하위 요소 선택자
+   - 예약 고유 ID가 담긴 속성
+3. 확인한 값을 `extension/content-reservations.js`의 `SELECTORS["33m2"]`에 입력
+4. (선택) 33m2가 화면을 JSON XHR로 그린다면 그 엔드포인트를
+   `backend/app/services/extension_sync.py`에 추가해 토큰 경로도 병행 가능
 
-> 현재 엔드포인트/키는 **추정값**으로 채워져 있으며 `TODO`로 표시되어 있습니다.
-> 위 절차로 실제 값을 확인해 교체하면 동기화가 작동합니다.
+> 현재 `SELECTORS`는 **예시 골격**(`TODO`)입니다. 위 1~3으로 실제 선택자를
+> 채우면 즉시 동기화가 작동합니다. **엔드포인트를 몰라도 됩니다.**
 
 ## ⚖️ 법적/약관 유의
 
