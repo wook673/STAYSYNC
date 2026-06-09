@@ -33,6 +33,7 @@ EXT_PLATFORM_MAP = {
     "enkostay": PlatformType.ncostay,
     "liveanywhere": PlatformType.liveanywhere,
     "zaritalk": PlatformType.zaritalk,
+    "zigbang": PlatformType.zigbang,
 }
 
 # 플랫폼별 토큰 선별 우선순위 (백엔드가 후보 중 실제 토큰을 고를 때 사용)

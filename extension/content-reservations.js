@@ -19,7 +19,8 @@
     host.includes("33m2") ? "33m2" :
     host.includes("enko") ? "enkostay" :
     host.includes("liveanywhere") ? "liveanywhere" :
-    host.includes("zaritalk") ? "zaritalk" : null;
+    host.includes("zaritalk") ? "zaritalk" :
+    host.includes("zigbang") ? "zigbang" : null;
   if (!PLATFORM) return;
 
   // 플랫폼별 DOM 선택자 (⚠️ 실제 화면 구조로 확정 필요)
@@ -35,6 +36,7 @@
     enkostay: { row: ".reservation-item", idAttr: "data-id", guest: ".guest", checkin: ".checkin", checkout: ".checkout" },
     liveanywhere: { row: ".booking", idAttr: "data-id", guest: ".guest", checkin: ".start", checkout: ".end" },
     zaritalk: { row: ".reservation", idAttr: "data-id", guest: ".name", checkin: ".start", checkout: ".end" },
+    zigbang: { row: ".reservation-item, [data-reservation-id]", idAttr: "data-reservation-id", guest: ".guest-name", checkin: ".checkin", checkout: ".checkout" },
   };
 
   function txt(el, sel) {

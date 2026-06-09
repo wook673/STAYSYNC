@@ -53,6 +53,12 @@ PLATFORM_ENDPOINTS = {
         "auth_header": "Authorization",
         "auth_format": "Bearer {token}",
     },
+    PlatformType.zigbang: {
+        "base": "https://www.zigbang.com",
+        "reservations": "/api/host/reservations",  # 추정
+        "auth_header": "Authorization",
+        "auth_format": "Bearer {token}",
+    },
 }
 
 

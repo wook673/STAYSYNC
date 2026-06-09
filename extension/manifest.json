@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "staySync 연결 도우미",
   "version": "0.1.0",
-  "description": "내 숙박 플랫폼(33m2·엔코스테이·리브애니웨어·자리톡) 로그인 세션을 staySync에 안전하게 연결합니다.",
+  "description": "내 숙박 플랫폼(33m2·자리톡·엔코스테이·리브애니웨어·직방) 로그인 세션을 staySync에 안전하게 연결해 예약을 통합 관리합니다.",
   "permissions": ["cookies", "storage", "tabs", "scripting"],
   "host_permissions": [
     "https://web.33m2.co.kr/*",
@@ -11,6 +11,8 @@
     "https://www.liveanywhere.me/*",
     "https://zaritalk.com/*",
     "https://*.zaritalk.com/*",
+    "https://www.zigbang.com/*",
+    "https://*.zigbang.com/*",
     "http://localhost:3000/*",
     "http://localhost:8000/*",
     "https://app.staysync.kr/*",
@@ -22,9 +24,18 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "staySync 연결"
+    "default_title": "staySync 연결",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   },
-  "_comment_icons": "아이콘 PNG는 icons/ 폴더에 추가하세요. 없어도 로드는 됩니다.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "content_scripts": [
     {
       "matches": [
@@ -32,7 +43,8 @@
         "https://host.enko.kr/*",
         "https://m.liveanywhere.me/*",
         "https://www.liveanywhere.me/*",
-        "https://zaritalk.com/*"
+        "https://zaritalk.com/*",
+        "https://www.zigbang.com/*"
       ],
       "js": ["content-token.js", "content-reservations.js"],
       "run_at": "document_idle"

@@ -20,6 +20,7 @@ const EXT_PLATFORMS: Record<string, { label: string; color: string; text?: strin
   ncostay: { label: "엔코스테이", color: "#f8e585", text: "#2a2410", auto: false },
   liveanywhere: { label: "리브애니웨어", color: "#1fadff", text: "#fff", auto: false },
   zaritalk: { label: "자리톡", color: "#5B8DEF", text: "#fff", auto: true },
+  zigbang: { label: "직방", color: "#FF6F0F", text: "#fff", auto: false },
 }
 
 // 확장 Chrome Web Store / 개발자 설치 안내 URL (배포 시 교체)
@@ -60,7 +61,7 @@ export function ExtensionConnectCard() {
               )}
             </div>
             <div className="text-xs text-gray-500 mt-0.5">
-              API가 없는 33m2·엔코·리브애니웨어·자리톡을 내 세션으로 연결
+              API가 없는 33m2·자리톡·엔코·리브애니웨어·직방을 내 세션으로 연결
             </div>
           </div>
         </div>

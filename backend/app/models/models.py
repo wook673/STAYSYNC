@@ -19,6 +19,7 @@ class PlatformType(str, enum.Enum):
     ncostay = "ncostay"
     liveanywhere = "liveanywhere"
     m33 = "33m2"
+    zigbang = "zigbang"
     manual = "manual"
 
 

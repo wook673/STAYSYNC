@@ -14,6 +14,7 @@ export const PLATFORM_LABELS: Record<string, string> = {
   ncostay: "엔코스테이",
   liveanywhere: "리브애니웨어",
   "33m2": "삼삼엠투",
+  zigbang: "직방",
   manual: "직접입력",
 }
 
@@ -26,6 +27,7 @@ export const PLATFORM_COLORS: Record<string, string> = {
   ncostay: "#FF8C00",
   liveanywhere: "#9B59B6",
   "33m2": "#F39C12",
+  zigbang: "#FF6F0F",
   manual: "#95A5A6",
 }
 

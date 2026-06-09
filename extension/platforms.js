@@ -51,6 +51,15 @@ export const PLATFORMS = {
     storageKeys: ["accessToken", "access_token", "authToken", "token"],
     autoMaintain: true,
   },
+  zigbang: {
+    label: "직방",
+    color: "#FF6F0F",
+    origin: "https://www.zigbang.com",
+    loginUrl: "https://www.zigbang.com/host/item",
+    tokenStrategy: "localStorage",
+    storageKeys: ["accessToken", "access_token", "authToken", "_zigbang_token", "token"],
+    autoMaintain: false,
+  },
 };
 
 // staySync 백엔드 base URL (개발: localhost:8000, 운영: api.staysync.kr)

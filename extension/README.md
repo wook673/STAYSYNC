@@ -1,8 +1,12 @@
 # staySync 연결 도우미 (Chrome 확장)
 
-공식 API가 없는 숙박 플랫폼(**33m2·엔코스테이·리브애니웨어·자리톡**)을 staySync에
+공식 API가 없는 숙박 플랫폼(**33m2·자리톡·엔코스테이·리브애니웨어·직방**)을 staySync에
 연결하기 위한 Chrome 확장입니다. Hostier가 쓰는 것과 **동일한 아키텍처**를
 staySync 전용으로 클린룸 구현했습니다.
+
+> 📦 **스토어 게시 준비물**은 `docs/chrome-store/` 참고
+> (개인정보처리방침·등록정보·체크리스트). zip 패키징: `bash extension/pack.sh`
+> (zip 미설치 시 PowerShell `Compress-Archive` 사용 — 게시 체크리스트 참고)
 
 ## 동작 원리
 
