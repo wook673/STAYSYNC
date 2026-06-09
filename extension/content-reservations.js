@@ -111,7 +111,39 @@
     return bookings;
   }
 
+  // ③ 33m2 전용 — 라벨 기반 텍스트 파서 (Next.js 서버렌더, 클라 API 없음)
+  //    계약 상세(/host/contract/{id}) + 목록 화면 모두 대응
+  function scrape33m2() {
+    const fullText = (document.body.innerText || "").replace(/\s+/g, " ");
+    const out = [];
+
+    // (a) 계약 상세 페이지: 입주일/퇴실일/임차인 이름 라벨
+    const cm = location.pathname.match(/\/contract\/(\d+)/);
+    if (cm) {
+      const after = (label, n = 40) => {
+        const i = fullText.indexOf(label);
+        return i < 0 ? "" : fullText.slice(i + label.length, i + label.length + n);
+      };
+      const start = normDate(after("입주일"));
+      const end = normDate(after("퇴실일"));
+      if (/^\d{4}-/.test(start) && /^\d{4}-/.test(end)) {
+        let guest = "예약";
+        const gi = fullText.indexOf("임차인 이름");
+        if (gi >= 0) guest = (fullText.slice(gi + 6, gi + 40).split("연락처")[0] || "").trim() || "예약";
+        const status = /결제완료|계약완료|확정|입주/.test(fullText) ? "confirmed" : "confirmed";
+        out.push({ external_id: cm[1], summary: guest, start_date: start, end_date: end, status });
+      }
+    }
+
+    // (b) 목록 화면: 각 계약 카드/행에 입주일·퇴실일이 반복 → 휴리스틱이 처리
+    return out;
+  }
+
   function scrape() {
+    if (PLATFORM === "33m2") {
+      const b33 = scrape33m2();
+      if (b33.length) { console.info(`[staySync] 33m2 라벨 파서로 ${b33.length}건 추출`); return b33; }
+    }
     let b = scrapeBySelectors();
     if (b.length) { console.info(`[staySync] 선택자로 ${b.length}건 추출`); return b; }
     b = scrapeHeuristic();
@@ -123,7 +155,9 @@
   window.__staySyncDiagnose = function () {
     const bySel = scrapeBySelectors();
     const byHeu = scrapeHeuristic();
+    const byPlat = PLATFORM === "33m2" ? scrape33m2() : [];
     console.group(`[staySync 진단] 플랫폼=${PLATFORM}`);
+    if (byPlat.length) console.log("플랫폼 전용 파서:", byPlat.length, "건", byPlat);
     console.log("선택자 기반 추출:", bySel.length, "건", bySel.slice(0, 3));
     console.log("휴리스틱 추출:", byHeu.length, "건", byHeu.slice(0, 5));
     console.log("페이지 전체 날짜 매칭 수:", findDates(document.body.innerText || "").length);
