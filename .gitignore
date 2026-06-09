@@ -51,4 +51,7 @@ coverage/
 
 # 확장 빌드 산출물
 staysync-extension.zip
-</content>
+
+# 경쟁사 분석 산출물 (저장 금지)
+_research/
+*.crx

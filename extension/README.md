@@ -24,10 +24,14 @@ staySync 전용으로 클린룸 구현했습니다.
 ```
 
 ### 두 가지 데이터 경로
-| 경로 | 파일 | 조건 | 비고 |
+> 🔬 **Hostier 확장 역분석 결과**: Hostier는 화면을 긁지 않고 **확장이 로그인 토큰만
+> 수집해 백엔드에 넘기고, 백엔드가 그 토큰으로 플랫폼 내부 API를 호출**해 예약 읽기·
+> 날짜 차단을 모두 server-side로 수행한다. → **토큰 경로가 정답(primary).**
+
+| 경로 | 파일 | 역할 | 비고 |
 |------|------|------|------|
-| **DOM 추출 (핵심)** | `content-reservations.js` → `POST /api/extension/sync` | API가 전혀 없어도 작동 | 33m2 기본 경로 |
-| 토큰 전달 (보조) | `background.js` → `POST /api/extension/connect` → `extension_sync.py` | **내부 JSON API가 있을 때만** | 있으면 더 효율적 |
+| **토큰 중개 (핵심, Hostier 방식)** | `background.js` → `POST /api/extension/connect` → 백엔드가 `extension_sync.py`로 플랫폼 내부 API 호출 | 읽기 + 차단(쓰기)을 백엔드가 수행 | 내부 API 엔드포인트 확정 필요(캡처 가이드) |
+| DOM 추출 (폴백) | `content-reservations.js` → `POST /api/extension/sync` | 내부 API를 못 쓸 때 화면에서 직접 추출 | 휴리스틱 자동탐지 포함 |
 
 > 🔒 **보안·원칙**: 비밀번호는 절대 다루지 않습니다. 이미 로그인된
 > **사용자 본인 세션의 토큰**만 읽어 **본인 staySync 계정**으로만 전송합니다.

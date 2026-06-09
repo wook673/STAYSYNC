@@ -16,7 +16,7 @@
 """
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 
 import httpx
@@ -125,3 +125,97 @@ def normalize_reservations(platform: PlatformType, raw) -> list[dict]:
         except Exception as e:  # noqa
             logger.warning("정규화 실패 (%s): %s", platform.value, e)
     return bookings
+
+
+# ════════════════════════════════════════════════════════════════════
+# 쓰기(차단) — 교차 플랫폼 날짜 차단
+#
+# Hostier 분석 결과 확정된 아키텍처:
+#  · 확장은 "토큰 중개"만 한다 (읽기/차단 코드 없음).
+#  · 예약 읽기 + 날짜 차단은 모두 백엔드가 토큰으로 플랫폼 내부 API를 호출해 수행.
+#
+# ⚠️ 차단(쓰기) 엔드포인트는 각 플랫폼 비공개이며, 사용자가 해당 플랫폼에서
+#    직접 "날짜 차단"을 실행할 때의 네트워크를 캡처해 확정해야 한다.
+#    (docs/33m2-내부api-캡처가이드.md 참고)
+# ════════════════════════════════════════════════════════════════════
+
+# 플랫폼별 "날짜 차단" 엔드포인트 (캡처로 확정 필요 — 현재 추정 골격)
+BLOCK_ENDPOINTS = {
+    PlatformType.m33: {"method": "POST", "path": "/api/host/calendar/block"},      # TODO 확정
+    PlatformType.ncostay: {"method": "POST", "path": "/api/calendar/block"},        # TODO
+    PlatformType.liveanywhere: {"method": "POST", "path": "/api/host/block"},        # TODO
+    PlatformType.zaritalk: {"method": "POST", "path": "/api/my/calendar/block"},     # TODO
+    PlatformType.zigbang: {"method": "POST", "path": "/api/host/calendar/block"},    # TODO
+}
+
+
+async def block_dates_via_token(connection, start_date: date, end_date: date) -> dict:
+    """
+    저장된 세션 토큰으로 해당 플랫폼에 날짜 차단(쓰기)을 요청.
+    ⚠️ 약관상 자동 쓰기는 리스크가 큼 — 공식 제휴/법무 검토 후 활성화 권장.
+    현재는 엔드포인트 미확정으로 '시뮬레이션' 응답만 반환(실호출 비활성).
+    """
+    base_cfg = PLATFORM_ENDPOINTS.get(connection.platform)
+    blk = BLOCK_ENDPOINTS.get(connection.platform)
+    if not base_cfg or not blk:
+        return {"ok": False, "error": "차단 엔드포인트 미설정"}
+
+    token = _extract_token(connection)
+    if not token:
+        return {"ok": False, "error": "토큰 없음", "needs_reauth": True}
+
+    # 🚧 안전장치: 실제 쓰기는 엔드포인트 확정 + 법무 검토 전까지 비활성화.
+    ENABLE_REAL_WRITE = False
+    if not ENABLE_REAL_WRITE:
+        logger.info("[DRY-RUN] %s 차단 요청 %s~%s (실호출 비활성)",
+                    connection.platform.value, start_date, end_date)
+        return {"ok": True, "dry_run": True,
+                "platform": connection.platform.value,
+                "start": str(start_date), "end": str(end_date)}
+
+    url = base_cfg["base"] + blk["path"]
+    headers = {base_cfg["auth_header"]: base_cfg["auth_format"].format(token=token)}
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.request(blk["method"], url, headers=headers,
+                json={"start_date": str(start_date), "end_date": str(end_date),
+                      "reason": "staySync 교차차단"})
+            if resp.status_code == 401:
+                return {"ok": False, "error": "401", "needs_reauth": True}
+            resp.raise_for_status()
+            return {"ok": True, "platform": connection.platform.value}
+    except httpx.HTTPError as e:
+        return {"ok": False, "error": str(e)}
+
+
+async def propagate_block(db: AsyncSession, room_id, source_connection_id,
+                          start_date: date, end_date: date) -> list[dict]:
+    """
+    교차 차단 오케스트레이션:
+    한 플랫폼에 예약이 들어오면, 같은 방의 '다른' 플랫폼 연결에 동일 날짜를 차단.
+
+    Hostier의 "한 곳 예약 시 다른 곳 자동 차단" 기능에 해당.
+    """
+    from app.models.models import PlatformConnection  # 지연 임포트(순환 방지)
+    from sqlalchemy import select, and_
+
+    stmt = select(PlatformConnection).where(
+        and_(
+            PlatformConnection.room_id == room_id,
+            PlatformConnection.id != source_connection_id,
+            PlatformConnection.is_active == True,  # noqa: E712
+        )
+    )
+    targets = (await db.execute(stmt)).scalars().all()
+    results = []
+    for conn in targets:
+        if conn.connection_type == "extension":
+            r = await block_dates_via_token(conn, start_date, end_date)
+        else:
+            # iCal 플랫폼: 직접 쓰기 불가 → 각 플랫폼이 우리 iCal을 가져가게 하는
+            # 방식(상호 iCal 구독)으로 차단 전파. 별도 설정 필요.
+            r = {"ok": False, "skipped": "ical_no_write",
+                 "platform": conn.platform.value}
+        results.append({"connection_id": str(conn.id),
+                        "platform": conn.platform.value, **r})
+    return results

@@ -23,6 +23,7 @@ from app.db.database import get_db
 from app.core.auth import get_current_user
 from app.models.models import User, Room, PlatformConnection, PlatformType, Booking, BookingStatus
 from app.services.ical_engine import detect_conflicts
+from app.services.extension_sync import propagate_block
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/extension", tags=["extension"])
@@ -208,6 +209,7 @@ async def ingest_scraped_bookings(
 
     added = updated = removed = 0
     seen: set[str] = set()
+    new_ranges: list[tuple] = []  # 신규 확정 예약 (교차차단 전파용)
 
     for b in payload.bookings:
         uid = f"{payload.platform}:{b.external_id}"
@@ -242,6 +244,8 @@ async def ingest_scraped_bookings(
                 status=status,
             ))
             added += 1
+            if status == BookingStatus.confirmed:
+                new_ranges.append((sd, ed))
 
     # 화면에서 사라진 예약 → 취소 처리
     for uid, row in existing.items():
@@ -255,11 +259,21 @@ async def ingest_scraped_bookings(
 
     # 이중예약 감지
     conflicts = await detect_conflicts(db, conn.room_id)
+
+    # 교차 차단 전파: 신규 확정 예약을 같은 방의 다른 플랫폼에 차단 요청
+    # (현재 차단 쓰기는 DRY-RUN — 엔드포인트 확정·법무 검토 후 활성화)
+    block_results = []
+    for (sd, ed) in new_ranges:
+        block_results.extend(
+            await propagate_block(db, conn.room_id, conn.id, sd, ed)
+        )
+
     await db.commit()
 
     return {
         "ok": True,
         "platform": payload.platform,
+        "blocks_propagated": len(block_results),
         "added": added,
         "updated": updated,
         "removed": removed,
