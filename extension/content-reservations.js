@@ -45,14 +45,26 @@
     const n = el.querySelector(sel);
     return n ? n.textContent.trim() : "";
   }
+  // 다양한 한국 날짜 표기 → YYYY-MM-DD
+  const DATE_RE = /(20\d{2})[.\-/년\s]+(\d{1,2})[.\-/월\s]+(\d{1,2})/g;
+  function normOne(y, m, d) {
+    return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+  }
   function normDate(s) {
-    // "2026.06.10", "2026-06-10", "06/10" 등 → YYYY-MM-DD 보정
-    const m = s.match(/(\d{4})[.\-/](\d{1,2})[.\-/](\d{1,2})/);
-    if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
-    return s;
+    const m = DATE_RE.exec(s);
+    DATE_RE.lastIndex = 0;
+    return m ? normOne(m[1], m[2], m[3]) : s;
+  }
+  function findDates(text) {
+    const out = [];
+    let m;
+    DATE_RE.lastIndex = 0;
+    while ((m = DATE_RE.exec(text))) out.push(normOne(m[1], m[2], m[3]));
+    return out;
   }
 
-  function scrape() {
+  // ① 선택자 기반 추출
+  function scrapeBySelectors() {
     const cfg = SELECTORS[PLATFORM];
     const rows = document.querySelectorAll(cfg.row);
     const bookings = [];
@@ -60,17 +72,65 @@
       const id = el.getAttribute(cfg.idAttr) || `row-${i}`;
       const start = normDate(txt(el, cfg.checkin));
       const end = normDate(txt(el, cfg.checkout));
-      if (!start || !end) return;
-      bookings.push({
-        external_id: String(id),
-        summary: txt(el, cfg.guest) || "예약",
-        start_date: start,
-        end_date: end,
-        status: "confirmed",
-      });
+      if (!/^\d{4}-/.test(start) || !/^\d{4}-/.test(end)) return;
+      bookings.push({ external_id: String(id), summary: txt(el, cfg.guest) || "예약",
+        start_date: start, end_date: end, status: "confirmed" });
     });
     return bookings;
   }
+
+  // ② 휴리스틱 추출: "날짜 2개 이상을 가진 가장 작은 컨테이너"를 예약 행으로 간주
+  function scrapeHeuristic() {
+    const candidates = [];
+    const all = document.querySelectorAll("li, tr, article, div, section");
+    all.forEach((el) => {
+      // 자식 중 같은 패턴이 또 있으면(상위 컨테이너) 건너뜀 → 가장 안쪽 행만
+      const t = el.innerText || "";
+      if (t.length > 400) return;
+      const dates = findDates(t);
+      if (dates.length < 2) return;
+      // 더 안쪽에 날짜2개 가진 자식이 있으면 스킵
+      const innerHas = Array.from(el.children).some(
+        (c) => findDates(c.innerText || "").length >= 2 && (c.innerText || "").length <= 400
+      );
+      if (innerHas) return;
+      candidates.push({ el, dates, text: t });
+    });
+    const bookings = [];
+    candidates.forEach((c, i) => {
+      const sorted = [...new Set(c.dates)].sort();
+      const start = sorted[0], end = sorted[sorted.length - 1];
+      if (start === end) return;
+      // 이름 추정: 날짜를 제외한 가장 짧은 의미있는 텍스트 라인
+      const nameLine = (c.text.split("\n").map((s) => s.trim())
+        .filter((s) => s && !DATE_RE.test(s) && s.length <= 20)[0]) || "예약";
+      DATE_RE.lastIndex = 0;
+      bookings.push({ external_id: `h-${i}-${start}`, summary: nameLine,
+        start_date: start, end_date: end, status: "confirmed" });
+    });
+    return bookings;
+  }
+
+  function scrape() {
+    let b = scrapeBySelectors();
+    if (b.length) { console.info(`[staySync] 선택자로 ${b.length}건 추출`); return b; }
+    b = scrapeHeuristic();
+    if (b.length) console.info(`[staySync] 휴리스틱으로 ${b.length}건 추출`);
+    return b;
+  }
+
+  // 🔎 진단 도구: 콘솔에서 window.__staySyncDiagnose() 실행 → 무엇이 감지되는지 확인
+  window.__staySyncDiagnose = function () {
+    const bySel = scrapeBySelectors();
+    const byHeu = scrapeHeuristic();
+    console.group(`[staySync 진단] 플랫폼=${PLATFORM}`);
+    console.log("선택자 기반 추출:", bySel.length, "건", bySel.slice(0, 3));
+    console.log("휴리스틱 추출:", byHeu.length, "건", byHeu.slice(0, 5));
+    console.log("페이지 전체 날짜 매칭 수:", findDates(document.body.innerText || "").length);
+    console.log("→ 둘 다 0건이면: 예약 목록 화면이 맞는지 확인하거나, 위 샘플을 개발자에게 전달하세요.");
+    console.groupEnd();
+    return { bySelectors: bySel, byHeuristic: byHeu };
+  };
 
   async function getStaySyncJwt() {
     // 확장 background에 위임 (staySync 탭의 토큰을 읽음)
@@ -82,7 +142,7 @@
   async function sync() {
     const bookings = scrape();
     if (!bookings.length) {
-      console.debug("[staySync] 예약 DOM을 찾지 못했습니다. 예약 목록 화면인지 확인하세요.");
+      console.warn("[staySync] 예약을 찾지 못했습니다. 예약 목록/캘린더 화면인지 확인하거나, 콘솔에서 window.__staySyncDiagnose() 를 실행해 무엇이 감지되는지 보세요.");
       return;
     }
     const jwt = await getStaySyncJwt();
