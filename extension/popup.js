@@ -20,6 +20,7 @@ async function getStaySyncJwt() {
     const [{ result }] = await chrome.scripting.executeScript({
       target: { tabId: tabs[0].id },
       func: () =>
+        localStorage.getItem("access_token") ||
         localStorage.getItem("staysync_token") ||
         localStorage.getItem("token") ||
         null,

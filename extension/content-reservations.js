@@ -11,9 +11,9 @@
  *    아래는 33m2 예시 골격이며, 실제 클래스/구조로 교체 필요.
  */
 (function () {
-  // ⚙️ 배포 설정: platforms.js 의 IS_PROD 와 동일하게 맞추세요.
+  // ⚙️ 배포 설정: platforms.js 의 IS_PROD/DEV_API 와 동일하게 맞추세요.
   const IS_PROD = false;
-  const STAYSYNC_API = IS_PROD ? "https://api.staysync.kr" : "http://localhost:8000";
+  const STAYSYNC_API = IS_PROD ? "https://api.staysync.kr" : "http://localhost:3000";
   const host = location.hostname;
 
   // 플랫폼 식별
