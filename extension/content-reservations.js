@@ -135,7 +135,24 @@
       }
     }
 
-    // (b) 목록 화면: 각 계약 카드/행에 입주일·퇴실일이 반복 → 휴리스틱이 처리
+    // (b) 목록 화면(/host/contract): "날짜(요일) ~ 날짜(요일)" 쌍을 모두 찾고
+    //     각 쌍의 직전 "임차인 [이름]"과 연결. 한 임차인이 여러 예약을 가질 수 있음.
+    const rangeRe = /(20\d{2}[.\-/]\d{1,2}[.\-/]\d{1,2})\([월화수목금토일]\)\s*~\s*(20\d{2}[.\-/]\d{1,2}[.\-/]\d{1,2})\([월화수목금토일]\)/g;
+    const seen = new Set();
+    let m;
+    while ((m = rangeRe.exec(fullText))) {
+      const start = normDate(m[1]);
+      const end = normDate(m[2]);
+      if (!/^\d{4}-/.test(start) || !/^\d{4}-/.test(end)) continue;
+      const before = fullText.slice(0, m.index);
+      const gi = before.lastIndexOf("임차인 ");
+      let guest = "예약";
+      if (gi >= 0) guest = (before.slice(gi + 4, gi + 24).split(/채팅|전화|결제|주소|영업/)[0] || "").trim() || "예약";
+      const id = `33m2-${start}-${end}-${guest}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      out.push({ external_id: id, summary: guest, start_date: start, end_date: end, status: "confirmed" });
+    }
     return out;
   }
 
