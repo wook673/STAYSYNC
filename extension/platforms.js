@@ -62,7 +62,14 @@ export const PLATFORMS = {
   },
 };
 
-// staySync 백엔드 base URL (개발: localhost:8000, 운영: api.staysync.kr)
-export const STAYSYNC_API =
-  (typeof self !== "undefined" && self.STAYSYNC_API_OVERRIDE) ||
-  "http://localhost:8000";
+// ⚙️ 배포 설정 ─────────────────────────────────────────────
+// Chrome 웹스토어 게시 시 IS_PROD = true 로만 변경하면 운영 도메인으로 전환됩니다.
+export const IS_PROD = false;
+
+export const STAYSYNC_API = IS_PROD
+  ? "https://api.staysync.kr"
+  : "http://localhost:8000";
+
+export const STAYSYNC_WEB = IS_PROD
+  ? "https://app.staysync.kr"
+  : "http://localhost:3000";

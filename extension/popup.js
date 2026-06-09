@@ -4,7 +4,9 @@
  *  - 플랫폼별 로그인 상태 표시 + 연결 버튼
  */
 
-const STAYSYNC_WEB = "http://localhost:3000";
+// ⚙️ 배포 설정: platforms.js 의 IS_PROD 와 동일하게 맞추세요.
+const IS_PROD = false
+const STAYSYNC_WEB = IS_PROD ? "https://app.staysync.kr" : "http://localhost:3000";
 
 const listEl = document.getElementById("platform-list");
 const authWarn = document.getElementById("auth-warn");
