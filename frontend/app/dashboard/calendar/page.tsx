@@ -13,12 +13,15 @@ import { useCalendarStore } from "@/lib/store"
 import { PLATFORM_LABELS, PLATFORM_COLORS } from "@/lib/utils"
 import { BookingDetailPanel } from "@/components/calendar/BookingDetailPanel"
 import { ManualBookingModal } from "@/components/calendar/ManualBookingModal"
+import { RoomTimeline } from "@/components/calendar/RoomTimeline"
+import { addMonths as addM, subMonths, format as fmt } from "date-fns"
 
 export default function CalendarPage() {
   const calendarRef = useRef<any>(null)
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedEvent, setSelectedEvent] = useState<any>(null)
   const [showManualModal, setShowManualModal] = useState(false)
+  const [view, setView] = useState<"timeline" | "month">("timeline")
   const { selectedRoomIds, toggleRoom, setAllRooms } = useCalendarStore()
 
   // 방 목록
@@ -130,31 +133,59 @@ export default function CalendarPage() {
           </div>
         )}
 
+        {/* 컨트롤 바: 월 이동 + 뷰 토글 */}
+        <div className="flex items-center justify-between px-6 pt-4">
+          <div className="flex items-center gap-2">
+            <button onClick={() => setCurrentDate(subMonths(currentDate, 1))}
+              className="px-2.5 py-1.5 rounded-lg border text-sm hover:bg-gray-50">‹</button>
+            <button onClick={() => setCurrentDate(new Date())}
+              className="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">오늘</button>
+            <button onClick={() => setCurrentDate(addM(currentDate, 1))}
+              className="px-2.5 py-1.5 rounded-lg border text-sm hover:bg-gray-50">›</button>
+            <span className="ml-2 font-semibold text-gray-900">{fmt(currentDate, "yyyy년 M월")}</span>
+          </div>
+          <div className="flex rounded-lg border overflow-hidden text-sm">
+            <button onClick={() => setView("timeline")}
+              className={view === "timeline" ? "px-3 py-1.5 bg-[#111] text-white" : "px-3 py-1.5 hover:bg-gray-50"}>
+              타임라인 (방×날짜)
+            </button>
+            <button onClick={() => setView("month")}
+              className={view === "month" ? "px-3 py-1.5 bg-[#111] text-white" : "px-3 py-1.5 hover:bg-gray-50"}>
+              월간
+            </button>
+          </div>
+        </div>
+
         <div className="flex-1 p-6">
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[dayGridPlugin, interactionPlugin]}
-            initialView="dayGridMonth"
-            locale="ko"
-            headerToolbar={{
-              left: "prev,next today",
-              center: "title",
-              right: "dayGridMonth,dayGridWeek",
-            }}
-            events={events}
-            eventClick={(info) => setSelectedEvent(info.event)}
-            datesSet={(info) => setCurrentDate(info.start)}
-            height="100%"
-            eventDisplay="block"
-            dayMaxEvents={3}
-            moreLinkText={(n) => `+${n}개`}
-            buttonText={{ today: "오늘", month: "월", week: "주" }}
-            eventContent={(arg) => (
-              <div className="px-1 py-0.5 text-xs truncate text-white font-medium">
-                {arg.event.title}
-              </div>
-            )}
-          />
+          {view === "timeline" ? (
+            <RoomTimeline
+              rooms={rooms}
+              events={events}
+              currentDate={currentDate}
+              onEventClick={(ev) => setSelectedEvent(ev)}
+            />
+          ) : (
+            <FullCalendar
+              ref={calendarRef}
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              locale="ko"
+              headerToolbar={{ left: "prev,next today", center: "title", right: "" }}
+              events={events}
+              eventClick={(info) => setSelectedEvent(info.event)}
+              datesSet={(info) => setCurrentDate(info.start)}
+              height="100%"
+              eventDisplay="block"
+              dayMaxEvents={3}
+              moreLinkText={(n) => `+${n}개`}
+              buttonText={{ today: "오늘", month: "월", week: "주" }}
+              eventContent={(arg) => (
+                <div className="px-1 py-0.5 text-xs truncate text-white font-medium">
+                  {arg.event.title}
+                </div>
+              )}
+            />
+          )}
         </div>
       </div>
 

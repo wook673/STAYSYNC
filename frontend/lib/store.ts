@@ -13,8 +13,10 @@ interface User {
 interface AuthStore {
   user: User | null
   token: string | null
+  hasHydrated: boolean
   setAuth: (user: User, token: string) => void
   logout: () => void
+  setHasHydrated: (v: boolean) => void
 }
 
 export const useAuthStore = create<AuthStore>()(
@@ -22,6 +24,7 @@ export const useAuthStore = create<AuthStore>()(
     (set) => ({
       user: null,
       token: null,
+      hasHydrated: false,
       setAuth: (user, token) => {
         localStorage.setItem("access_token", token)
         set({ user, token })
@@ -30,8 +33,15 @@ export const useAuthStore = create<AuthStore>()(
         localStorage.removeItem("access_token")
         set({ user: null, token: null })
       },
+      setHasHydrated: (v) => set({ hasHydrated: v }),
     }),
-    { name: "auth-store" }
+    {
+      name: "auth-store",
+      // 영속화 복원 완료 후에만 인증 판단 (새로고침 시 로그인 튕김 방지)
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
+    }
   )
 )
 

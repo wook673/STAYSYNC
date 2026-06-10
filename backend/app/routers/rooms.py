@@ -76,6 +76,7 @@ async def create_room(
     )
     db.add(room)
     await db.flush()
+    await db.refresh(room, attribute_names=["connections"])
     return _room_dict(room)
 
 
@@ -96,6 +97,7 @@ async def update_room(
     if body.color is not None:
         room.color = body.color
     await db.flush()
+    await db.refresh(room, attribute_names=["connections"])
     return _room_dict(room)
 
 

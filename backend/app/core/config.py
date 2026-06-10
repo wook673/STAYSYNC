@@ -3,9 +3,10 @@ from typing import Optional
 
 
 class Settings(BaseSettings):
-    DATABASE_URL: str
+    # 로컬 개발 기본값: SQLite (운영은 .env로 PostgreSQL 지정)
+    DATABASE_URL: str = "sqlite+aiosqlite:///./staysync.db"
     REDIS_URL: str = "redis://localhost:6379"
-    SECRET_KEY: str
+    SECRET_KEY: str = "dev-secret-change-me-in-prod"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 

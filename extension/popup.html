@@ -12,17 +12,97 @@
       <div class="sub">플랫폼 연결 도우미</div>
     </header>
 
-    <div id="auth-warn" class="warn hidden">
-      staySync에 먼저 로그인해야 합니다.
-      <a href="http://localhost:3000/auth/login" target="_blank">로그인하기</a>
+    <!-- 탭 네비게이션 -->
+    <div class="tabs">
+      <button class="tab active" data-tab="connect">플랫폼 연결</button>
+      <button class="tab" data-tab="analyze">📊 시장 분석</button>
     </div>
 
-    <ul id="platform-list" class="list"></ul>
+    <!-- ── 탭 1: 플랫폼 연결 ───────────────────────────────────────── -->
+    <div id="tab-connect" class="tab-content">
+      <div id="auth-warn" class="warn hidden">
+        staySync에 먼저 로그인해야 합니다.
+        <a href="http://localhost:3000/auth/login" target="_blank">로그인하기</a>
+      </div>
+      <ul id="platform-list" class="list"></ul>
+      <p class="note">
+        ⓘ 각 플랫폼에 <b>내 계정으로 로그인</b>한 뒤 연결을 누르세요. 비밀번호는
+        수집하지 않으며, 이미 로그인된 <b>내 세션 토큰</b>만 staySync로 전달됩니다.
+      </p>
+    </div>
 
-    <p class="note">
-      ⓘ 각 플랫폼에 <b>내 계정으로 로그인</b>한 뒤 연결을 누르세요. 비밀번호는
-      수집하지 않으며, 이미 로그인된 <b>내 세션 토큰</b>만 staySync로 전달됩니다.
-    </p>
+    <!-- ── 탭 2: 시장 분석 ───────────────────────────────────────── -->
+    <div id="tab-analyze" class="tab-content hidden">
+
+      <!-- 입력 폼 -->
+      <div class="analyze-form">
+        <div class="addr-row">
+          <input
+            type="text"
+            id="addr-input"
+            class="addr-input"
+            placeholder="주소 입력 (예: 서울 마포구 합정동)"
+          />
+          <button id="gps-btn" class="btn-gps" title="현재 위치 사용">📍</button>
+        </div>
+        <div id="addr-display" class="addr-display hidden"></div>
+
+        <div class="options-row">
+          <div class="opt-group">
+            <label>반경</label>
+            <select id="radius-select">
+              <option value="300">300m</option>
+              <option value="500" selected>500m</option>
+              <option value="1000">1km</option>
+              <option value="2000">2km</option>
+            </select>
+          </div>
+          <div class="opt-group">
+            <label>예약률</label>
+            <select id="threshold-select">
+              <option value="50">50%+</option>
+              <option value="60">60%+</option>
+              <option value="70" selected>70%+</option>
+              <option value="80">80%+</option>
+              <option value="90">90%+</option>
+            </select>
+          </div>
+          <div class="opt-group">
+            <label>기간</label>
+            <select id="days-select">
+              <option value="30">1개월</option>
+              <option value="60" selected>2개월</option>
+              <option value="90">3개월</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="analyze-btn" class="btn-analyze">🔍 분석하기</button>
+      </div>
+
+      <!-- 진행 상황 -->
+      <div id="analyze-progress" class="analyze-progress hidden">
+        <div class="spinner"></div>
+        <span id="progress-msg">분석 중...</span>
+      </div>
+
+      <!-- 결과 -->
+      <div id="analyze-results" class="analyze-results hidden">
+        <div class="results-header">
+          <span id="results-summary"></span>
+          <button id="map-btn" class="btn-map hidden" title="지도로 보기">🗺️ 지도</button>
+        </div>
+        <div id="mock-warn" class="mock-warn hidden">
+          ⚠️ 샘플 데이터입니다. 33m2 API 엔드포인트 확정 후 실제 데이터가 표시됩니다.
+          <a id="api-guide-link" href="#" target="_blank">캡처 가이드 보기 →</a>
+        </div>
+        <ul id="result-list" class="result-list"></ul>
+        <div id="no-results" class="no-results hidden">
+          해당 조건을 만족하는 매물이 없습니다.<br>임계값을 낮추거나 반경을 넓혀보세요.
+        </div>
+      </div>
+
+    </div>
 
     <script src="popup.js" type="module"></script>
   </body>

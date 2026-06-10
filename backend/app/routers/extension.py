@@ -49,6 +49,7 @@ class ConnectPayload(BaseModel):
     credentials: dict  # 토큰 후보 전체 (키 → 값)
     preferred_keys: list[str] = []
     captured_at: Optional[str] = None
+    room_id: Optional[str] = None  # 연결할 방 지정 (없으면 첫 번째 방)
 
 
 def _select_token(credentials: dict, preferred: list[str]) -> Optional[str]:
@@ -82,9 +83,13 @@ async def connect_platform(
             "세션 토큰을 찾지 못했습니다. 플랫폼에 로그인되어 있는지 확인 후 다시 연결해주세요.",
         )
 
-    # 사용자의 첫 번째 방에 연결을 귀속 (방 미지정 시 임시).
-    # 실제로는 사용자가 어떤 방에 연결할지 선택하는 UI가 이상적.
-    room_stmt = select(Room).where(Room.user_id == user.id).order_by(Room.created_at).limit(1)
+    # 연결할 방: room_id 지정 시 그 방, 아니면 첫 번째 방
+    if payload.room_id:
+        room_stmt = select(Room).where(
+            and_(Room.id == uuid.UUID(payload.room_id), Room.user_id == user.id)
+        )
+    else:
+        room_stmt = select(Room).where(Room.user_id == user.id).order_by(Room.created_at).limit(1)
     room = (await db.execute(room_stmt)).scalar_one_or_none()
     if not room:
         raise HTTPException(400, "먼저 숙소(방)를 1개 이상 등록해주세요.")

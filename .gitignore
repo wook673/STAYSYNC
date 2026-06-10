@@ -55,3 +55,6 @@ staysync-extension.zip
 # 경쟁사 분석 산출물 (저장 금지)
 _research/
 *.crx
+
+# 테스트 시드(토큰 포함) 금지
+frontend/public/_seed.html

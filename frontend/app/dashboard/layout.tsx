@@ -16,12 +16,14 @@ const NAV = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, logout } = useAuthStore()
+  const { user, logout, hasHydrated } = useAuthStore()
 
   useEffect(() => {
-    if (!user) router.replace("/auth/login")
-  }, [user, router])
+    if (hasHydrated && !user) router.replace("/auth/login")
+  }, [hasHydrated, user, router])
 
+  // 영속화 복원 전에는 판단 보류 (새로고침 시 깜빡 로그인 튕김 방지)
+  if (!hasHydrated) return null
   if (!user) return null
 
   const isTrialing = user.plan === "trial"

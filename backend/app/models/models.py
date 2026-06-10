@@ -5,7 +5,7 @@ from sqlalchemy import (
     Text, Enum as SAEnum, UniqueConstraint
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from app.db.types import GUID
 from app.db.database import Base
 import enum
 
@@ -39,7 +39,7 @@ class PlanType(str, enum.Enum):
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -57,8 +57,8 @@ class User(Base):
 class Room(Base):
     __tablename__ = "rooms"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     address: Mapped[str | None] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text)
@@ -78,8 +78,8 @@ class Room(Base):
 class PlatformConnection(Base):
     __tablename__ = "platform_connections"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    room_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    room_id: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("rooms.id"), nullable=False)
     platform: Mapped[PlatformType] = mapped_column(SAEnum(PlatformType), nullable=False)
     ical_url: Mapped[str | None] = mapped_column(Text)
     nickname: Mapped[str | None] = mapped_column(String(100))  # 플랫폼 내 숙소명
@@ -106,9 +106,9 @@ class PlatformConnection(Base):
 class Booking(Base):
     __tablename__ = "bookings"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    room_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
-    connection_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("platform_connections.id"))
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    room_id: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("rooms.id"), nullable=False)
+    connection_id: Mapped[uuid.UUID | None] = mapped_column(GUID(), ForeignKey("platform_connections.id"))
     ical_uid: Mapped[str | None] = mapped_column(String(500))  # iCal UID for dedup
     platform: Mapped[PlatformType] = mapped_column(SAEnum(PlatformType), default=PlatformType.manual)
     summary: Mapped[str | None] = mapped_column(String(500))   # 예약자명 or 예약번호
@@ -131,10 +131,10 @@ class Booking(Base):
 class Conflict(Base):
     __tablename__ = "conflicts"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    room_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
-    booking_id_1: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"))
-    booking_id_2: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("bookings.id"))
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    room_id: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("rooms.id"), nullable=False)
+    booking_id_1: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("bookings.id"))
+    booking_id_2: Mapped[uuid.UUID] = mapped_column(GUID(), ForeignKey("bookings.id"))
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     notified: Mapped[bool] = mapped_column(Boolean, default=False)
