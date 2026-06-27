@@ -116,6 +116,7 @@ class Booking(Base):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     guest_name: Mapped[str | None] = mapped_column(String(200))
     guest_count: Mapped[int | None] = mapped_column(Integer)
+    amount: Mapped[int | None] = mapped_column(Integer)  # 수익(원) — 정산 반영
     notes: Mapped[str | None] = mapped_column(Text)
     status: Mapped[BookingStatus] = mapped_column(SAEnum(BookingStatus), default=BookingStatus.confirmed)
     raw_ical: Mapped[str | None] = mapped_column(Text)

@@ -86,6 +86,7 @@ async def get_calendar_events(
                 "status": b.status.value,
                 "guest_name": b.guest_name,
                 "guest_count": b.guest_count,
+                "amount": b.amount,
                 "notes": b.notes,
             },
         })
@@ -166,6 +167,8 @@ class ManualBookingCreate(BaseModel):
     guest_count: Optional[int] = None
     notes: Optional[str] = None
     summary: Optional[str] = None
+    amount: Optional[int] = None        # 수익(원)
+    status: Optional[str] = "confirmed"  # confirmed(예약) | blocked(수동차단)
 
 
 @router.post("/bookings")
@@ -185,17 +188,19 @@ async def create_manual_booking(
     if not room:
         raise HTTPException(status_code=404, detail="방을 찾을 수 없습니다.")
 
+    is_block = (body.status or "confirmed") == "blocked"
     booking = Booking(
         id=uuid.uuid4(),
         room_id=room.id,
         platform=PlatformType.manual,
-        summary=body.summary or body.guest_name or "수동 예약",
+        summary=body.summary or body.guest_name or ("수동 차단" if is_block else "수동 예약"),
         start_date=body.start_date,
         end_date=body.end_date,
         guest_name=body.guest_name,
         guest_count=body.guest_count,
+        amount=None if is_block else body.amount,
         notes=body.notes,
-        status=BookingStatus.confirmed,
+        status=BookingStatus.blocked if is_block else BookingStatus.confirmed,
     )
     db.add(booking)
     await db.flush()
@@ -204,6 +209,51 @@ async def create_manual_booking(
     return {
         "booking": {"id": str(booking.id)},
         "conflicts": len(conflicts),
+    }
+
+
+@router.get("/settlement")
+async def get_settlement(
+    start: date = Query(...),
+    end: date = Query(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """기간 내 확정 예약의 수익 정산 집계 (방별 + 합계)"""
+    rooms_result = await db.execute(
+        select(Room).where(Room.user_id == current_user.id, Room.is_active == True)
+    )
+    rooms = {str(r.id): r for r in rooms_result.scalars().all()}
+    if not rooms:
+        return {"total": 0, "count": 0, "by_room": []}
+
+    stmt = select(Booking).where(
+        and_(
+            Booking.room_id.in_([uuid.UUID(rid) for rid in rooms]),
+            Booking.status == BookingStatus.confirmed,
+            Booking.start_date < end,
+            Booking.end_date > start,
+        )
+    )
+    bookings = (await db.execute(stmt)).scalars().all()
+
+    by_room: dict[str, dict] = {}
+    total = 0
+    for b in bookings:
+        amt = b.amount or 0
+        total += amt
+        rid = str(b.room_id)
+        if rid not in by_room:
+            r = rooms.get(rid)
+            by_room[rid] = {"room_id": rid, "room_name": r.name if r else "",
+                            "color": r.color if r else "#888", "amount": 0, "count": 0}
+        by_room[rid]["amount"] += amt
+        by_room[rid]["count"] += 1
+
+    return {
+        "total": total,
+        "count": len(bookings),
+        "by_room": sorted(by_room.values(), key=lambda x: -x["amount"]),
     }
 
 

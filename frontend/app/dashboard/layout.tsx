@@ -2,13 +2,14 @@
 import { useEffect } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Calendar, Home, Settings, CreditCard, LogOut, AlertTriangle } from "lucide-react"
+import { Calendar, Home, Settings, CreditCard, LogOut, AlertTriangle, TrendingUp } from "lucide-react"
 import { useAuthStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
 const NAV = [
   { href: "/dashboard/calendar", label: "캘린더", icon: Calendar },
   { href: "/dashboard/rooms", label: "방 관리", icon: Home },
+  { href: "/dashboard/market", label: "시장 분석", icon: TrendingUp },
   { href: "/dashboard/settings/subscription", label: "구독", icon: CreditCard },
   { href: "/dashboard/settings/profile", label: "설정", icon: Settings },
 ]
@@ -97,7 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* 메인 */}
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto min-w-0">{children}</main>
     </div>
   )
 }

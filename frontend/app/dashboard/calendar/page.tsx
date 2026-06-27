@@ -14,6 +14,7 @@ import { PLATFORM_LABELS, PLATFORM_COLORS } from "@/lib/utils"
 import { BookingDetailPanel } from "@/components/calendar/BookingDetailPanel"
 import { ManualBookingModal } from "@/components/calendar/ManualBookingModal"
 import { RoomTimeline } from "@/components/calendar/RoomTimeline"
+import { CellBookingModal } from "@/components/calendar/CellBookingModal"
 import { addMonths as addM, subMonths, format as fmt } from "date-fns"
 
 export default function CalendarPage() {
@@ -21,6 +22,7 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedEvent, setSelectedEvent] = useState<any>(null)
   const [showManualModal, setShowManualModal] = useState(false)
+  const [cellTarget, setCellTarget] = useState<{ roomId: string; roomName: string; date: Date } | null>(null)
   const [view, setView] = useState<"timeline" | "month">("timeline")
   const { selectedRoomIds, toggleRoom, setAllRooms } = useCalendarStore()
 
@@ -36,9 +38,9 @@ export default function CalendarPage() {
     }
   }, [rooms])
 
-  // 캘린더 이벤트
-  const start = format(startOfMonth(currentDate), "yyyy-MM-dd")
-  const end = format(endOfMonth(addMonths(currentDate, 1)), "yyyy-MM-dd")
+  // 캘린더 이벤트 (타임라인 연속 스트립용으로 앞뒤 달 포함해 넓게 조회)
+  const start = format(startOfMonth(subMonths(currentDate, 1)), "yyyy-MM-dd")
+  const end = format(endOfMonth(addMonths(currentDate, 2)), "yyyy-MM-dd")
 
   const { data: events = [], refetch } = useQuery({
     queryKey: ["calendar-events", start, end, selectedRoomIds],
@@ -52,6 +54,14 @@ export default function CalendarPage() {
     queryKey: ["conflicts"],
     queryFn: () => calendarApi.conflicts().then((r) => r.data),
     refetchInterval: 60000, // 1분마다
+  })
+
+  // 정산 (현재 월 기준)
+  const settMonthStart = format(startOfMonth(currentDate), "yyyy-MM-dd")
+  const settMonthEnd = format(endOfMonth(currentDate), "yyyy-MM-dd")
+  const { data: settlement, refetch: refetchSettlement } = useQuery({
+    queryKey: ["settlement", settMonthStart, settMonthEnd],
+    queryFn: () => calendarApi.settlement({ start: settMonthStart, end: settMonthEnd }).then((r) => r.data),
   })
 
   return (
@@ -121,7 +131,7 @@ export default function CalendarPage() {
       </div>
 
       {/* 메인 캘린더 영역 */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* 이중예약 경고 배너 */}
         {conflicts.length > 0 && (
           <div className="bg-red-50 border-b border-red-200 px-6 py-3 flex items-center gap-2">
@@ -144,6 +154,12 @@ export default function CalendarPage() {
               className="px-2.5 py-1.5 rounded-lg border text-sm hover:bg-gray-50">›</button>
             <span className="ml-2 font-semibold text-gray-900">{fmt(currentDate, "yyyy년 M월")}</span>
           </div>
+          {/* 이번 달 정산 요약 */}
+          <div className="flex items-center gap-2 text-sm bg-[#fff1f3] text-[#99002e] rounded-lg px-3 py-1.5">
+            <span className="text-xs">이번 달 정산</span>
+            <span className="font-bold">{(settlement?.total ?? 0).toLocaleString()}원</span>
+            <span className="text-xs text-[#c1093a]">· {settlement?.count ?? 0}건</span>
+          </div>
           <div className="flex rounded-lg border overflow-hidden text-sm">
             <button onClick={() => setView("timeline")}
               className={view === "timeline" ? "px-3 py-1.5 bg-[#111] text-white" : "px-3 py-1.5 hover:bg-gray-50"}>
@@ -156,13 +172,14 @@ export default function CalendarPage() {
           </div>
         </div>
 
-        <div className="flex-1 p-6">
+        <div className="flex-1 p-6 min-w-0">
           {view === "timeline" ? (
             <RoomTimeline
               rooms={rooms}
               events={events}
               currentDate={currentDate}
               onEventClick={(ev) => setSelectedEvent(ev)}
+              onCellClick={(roomId, roomName, date) => setCellTarget({ roomId, roomName, date })}
             />
           ) : (
             <FullCalendar
@@ -207,6 +224,21 @@ export default function CalendarPage() {
             setShowManualModal(false)
             refetch()
             toast.success("예약이 추가되었습니다.")
+          }}
+        />
+      )}
+
+      {/* 타임라인 셀 클릭 → 예약/차단 등록 */}
+      {cellTarget && (
+        <CellBookingModal
+          roomId={cellTarget.roomId}
+          roomName={cellTarget.roomName}
+          date={cellTarget.date}
+          onClose={() => setCellTarget(null)}
+          onSuccess={() => {
+            setCellTarget(null)
+            refetch()
+            refetchSettlement()
           }}
         />
       )}

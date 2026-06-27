@@ -25,6 +25,50 @@ const M33_ENDPOINTS = {
   calendar2: (roomId) => `${M33_BASE}/api/rooms/${roomId}/availability`, // 추정 B
 };
 
+// ─── 33m2 검색 결과 DOM 파서 (실측 구조 반영) ───────────────────────────────
+// 33m2는 Next.js 서버렌더라 공개 API가 없음. /guest/search 화면의 매물 목록을
+// DOM 텍스트에서 파싱한다. (좌표·예약률은 이 화면에 없음 — 시세/공급 분석용)
+//
+// 패턴: "{지역}의 {유형} {제목} 방N 화장실N {주간가}원/1주 임대료X원 관리비Y원 [할인]"
+export function parse33m2SearchListings(text) {
+  const re = /([가-힣]+시\s[가-힣]+동)의\s+(\S+)\s+(.+?)\s+방(\d+)\s*화장실(\d+).*?([\d,]{4,})\s*원\s*\/\s*1주.*?임대료([\d,]+)원\s*관리비([\d,]+)원/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(text))) {
+    out.push({
+      area: m[1],
+      type: m[2],
+      name: m[3].trim(),
+      rooms: +m[4],
+      bath: +m[5],
+      weekPrice: +m[6].replace(/,/g, ""),
+      rent: +m[7].replace(/,/g, ""),
+      mgmt: +m[8].replace(/,/g, ""),
+    });
+  }
+  return out;
+}
+
+// 매물 목록 → 시세/공급 통계
+export function summarizeMarket(listings) {
+  if (!listings.length) return null;
+  const prices = listings.map((l) => l.weekPrice).sort((a, b) => a - b);
+  const byType = {}, byArea = {};
+  for (const l of listings) {
+    byType[l.type] = (byType[l.type] || 0) + 1;
+    byArea[l.area] = (byArea[l.area] || 0) + 1;
+  }
+  return {
+    count: listings.length,
+    avgWeekPrice: Math.round(prices.reduce((s, p) => s + p, 0) / prices.length),
+    minWeekPrice: prices[0],
+    maxWeekPrice: prices[prices.length - 1],
+    medianWeekPrice: prices[Math.floor(prices.length / 2)],
+    byType,
+    byArea,
+  };
+}
+
 // ─── 유틸: Haversine 거리 (m) ───────────────────────────────────────────────
 export function haversineM(lat1, lng1, lat2, lng2) {
   const R = 6371000;

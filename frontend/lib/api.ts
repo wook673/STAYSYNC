@@ -65,8 +65,12 @@ export const calendarApi = {
     guest_count?: number
     notes?: string
     summary?: string
+    amount?: number
+    status?: "confirmed" | "blocked"
   }) => api.post("/api/calendar/bookings", data),
   deleteBooking: (bookingId: string) => api.delete(`/api/calendar/bookings/${bookingId}`),
+  settlement: (params: { start: string; end: string }) =>
+    api.get("/api/calendar/settlement", { params }),
 }
 
 export const extensionApi = {
