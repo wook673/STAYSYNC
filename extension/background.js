@@ -46,8 +46,102 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       .catch((e) => sendResponse({ ok: false, error: String(e?.message || e) }));
     return true;
   }
+
+  if (msg?.type === "SYNC_BOOKINGS") {
+    // 콘텐츠 스크립트가 긁은 예약을 백엔드로 전송 (SW에서 호출 → CORS 면제)
+    syncBookings(msg.platform, msg.bookings)
+      .then((r) => sendResponse(r))
+      .catch((e) => sendResponse({ ok: false, error: String(e?.message || e) }));
+    return true;
+  }
+
+  if (msg?.type === "SCRAPE_33M2_PAYLOAD") {
+    // MAIN world에서 __next_f(서버렌더 데이터 원본)를 읽어 전체 계약을 파싱
+    scrape33m2Payload(sender.tab?.id)
+      .then((r) => sendResponse(r))
+      .catch((e) => sendResponse({ ok: false, error: String(e?.message || e) }));
+    return true;
+  }
   return false;
 });
+
+// 33m2 계약 텍스트(__next_f 또는 SSR HTML)에서 계약 추출
+function parse33m2Contracts(text) {
+  const re = /"startDate":"(\d{4}-\d{2}-\d{2})","endDate":"(\d{4}-\d{2}-\d{2})","rid":(\d+),"roomName":"((?:[^"\\]|\\.)*)"/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(text))) {
+    const start = m[1], end = m[2], rid = m[3];
+    let room = m[4];
+    try { room = JSON.parse('"' + room + '"'); } catch (e) {}
+    let guest = "예약";
+    const after = text.slice(m.index, m.index + 800);
+    const ns = after.indexOf('"startDate"', 12);
+    const seg = ns > 0 ? after.slice(0, ns) : after;
+    const gm = seg.match(/"(tenantName|userName|guestName|customerName|tenant_name)":"((?:[^"\\]|\\.)*)"/);
+    if (gm) { try { guest = JSON.parse('"' + gm[2] + '"'); } catch (e) { guest = gm[2]; } }
+    out.push({ external_id: `33m2-${rid}-${start}-${end}`, summary: guest,
+      room_label: room || "33m2 미지정", start_date: start, end_date: end, status: "confirmed" });
+  }
+  return out;
+}
+
+// 33m2: 전체 계약을 수집. ① 현재 탭의 __next_f + ② background가 본인 세션으로
+//       1~N페이지를 직접 fetch (Hostier 방식 — 수동 페이지 이동 불필요).
+async function scrape33m2Payload(tabId) {
+  const all = new Map(); // external_id -> booking (중복 제거)
+
+  // ① 현재 탭의 페이로드(가장 확실 — 현재 페이지)
+  if (tabId) {
+    try {
+      const [{ result }] = await chrome.scripting.executeScript({
+        target: { tabId }, world: "MAIN",
+        func: () => (self.__next_f || []).map((x) => (Array.isArray(x) ? x[1] : "")).join(""),
+      });
+      for (const b of parse33m2Contracts(result || "")) all.set(b.external_id, b);
+    } catch (e) { /* 무시 */ }
+  }
+
+  // ② 전 페이지 직접 fetch (본인 33m2 쿠키 세션 사용)
+  const base = "https://web.33m2.co.kr/host/contract";
+  let pagesFetched = 0;
+  for (let page = 1; page <= 20; page++) {
+    let res;
+    try {
+      res = await fetch(`${base}?page=${page}`, {
+        credentials: "include",
+        headers: { Accept: "text/html,application/xhtml+xml" },
+      });
+    } catch (e) { break; }
+    if (!res.ok) break;
+    const text = await res.text();
+    const before = all.size;
+    for (const b of parse33m2Contracts(text)) if (!all.has(b.external_id)) all.set(b.external_id, b);
+    pagesFetched++;
+    // 2페이지부터 새 계약이 없으면 마지막 페이지로 간주하고 종료
+    if (page >= 2 && all.size === before) break;
+  }
+
+  const bookings = [...all.values()];
+  if (!bookings.length) return { ok: true, count: 0, added: 0, pages: pagesFetched };
+  const r = await syncBookings("33m2", bookings);
+  return { ...r, count: bookings.length, pages: pagesFetched };
+}
+
+async function syncBookings(platform, bookings) {
+  const jwt = await readStaySyncJwt();
+  if (!jwt) return { ok: false, error: "staySync 로그인이 필요합니다 (localhost:3000 탭 열기)" };
+  const res = await fetch(`${STAYSYNC_API}/api/extension/sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${jwt}` },
+    body: JSON.stringify({ platform, bookings }),
+  });
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    return { ok: false, error: `백엔드 오류 ${res.status}: ${t.slice(0, 150)}` };
+  }
+  return await res.json().catch(() => ({ ok: true }));
+}
 
 async function connectPlatform(platformKey, staySyncJwt) {
   const cfg = PLATFORMS[platformKey];

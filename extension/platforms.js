@@ -69,7 +69,7 @@ export const IS_PROD = false;
 // 개발 백엔드 주소:
 //  - localhost:3000 → Next.js mock API (Python 불필요, 빠른 테스트용) ★기본
 //  - localhost:8000 → 실제 FastAPI 백엔드를 띄운 경우 이 값으로 변경
-export const DEV_API = "http://localhost:3000";
+export const DEV_API = "http://localhost:8000";
 
 export const STAYSYNC_API = IS_PROD ? "https://api.staysync.kr" : DEV_API;
 export const STAYSYNC_WEB = IS_PROD ? "https://app.staysync.kr" : "http://localhost:3000";

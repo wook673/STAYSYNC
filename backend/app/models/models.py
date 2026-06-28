@@ -48,6 +48,12 @@ class User(Base):
     trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     toss_customer_key: Mapped[str | None] = mapped_column(String(255))
     toss_billing_key: Mapped[str | None] = mapped_column(String(500))
+    # ── 청소 알림(솔라피) 설정 ──
+    solapi_api_key: Mapped[str | None] = mapped_column(String(255))
+    solapi_api_secret: Mapped[str | None] = mapped_column(String(255))
+    solapi_sender: Mapped[str | None] = mapped_column(String(20))      # 발신번호(사전등록)
+    cleaning_notify_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    cleaning_msg_template: Mapped[str | None] = mapped_column(Text)    # 메시지 템플릿(변수 치환)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
@@ -63,6 +69,9 @@ class Room(Base):
     address: Mapped[str | None] = mapped_column(String(500))
     description: Mapped[str | None] = mapped_column(Text)
     color: Mapped[str] = mapped_column(String(7), default="#3B82F6")  # hex color
+    # ── 매물별 청소 담당자 ──
+    cleaner_name: Mapped[str | None] = mapped_column(String(100))
+    cleaner_phone: Mapped[str | None] = mapped_column(String(20))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
 
@@ -119,6 +128,7 @@ class Booking(Base):
     amount: Mapped[int | None] = mapped_column(Integer)  # 수익(원) — 정산 반영
     notes: Mapped[str | None] = mapped_column(Text)
     status: Mapped[BookingStatus] = mapped_column(SAEnum(BookingStatus), default=BookingStatus.confirmed)
+    cleaning_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # 청소 알림 발송 시각(중복 방지)
     raw_ical: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)

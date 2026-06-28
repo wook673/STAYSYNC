@@ -148,9 +148,15 @@ async def connect_platform(
 class ScrapedBooking(BaseModel):
     external_id: str           # 플랫폼 예약 고유 ID (DOM에서 추출)
     summary: Optional[str] = None  # 게스트명/예약번호
+    room_label: Optional[str] = None  # 플랫폼 내 매물(방) 이름 (표시용)
+    room_addr: Optional[str] = None   # 매물 주소 → 그룹 키(이름 표기가 달라도 주소로 동일 매물 인식)
     start_date: str            # "YYYY-MM-DD" (체크인)
     end_date: str              # "YYYY-MM-DD" (체크아웃, exclusive)
     status: str = "confirmed"  # confirmed | blocked | cancelled
+
+
+_ROOM_COLORS = ["#3B82F6", "#10B981", "#8B5CF6", "#F39C12", "#EF4444",
+                "#06B6D4", "#EC4899", "#84CC16", "#F97316", "#6366F1"]
 
 
 class SyncPayload(BaseModel):
@@ -161,6 +167,11 @@ class SyncPayload(BaseModel):
 
 def _parse_date(s: str) -> date:
     return datetime.strptime(s[:10], "%Y-%m-%d").date()
+
+
+def _norm_addr(addr: Optional[str]) -> str:
+    """주소 정규화 그룹 키 — 공백 제거 + 소문자 (사소한 표기차 흡수)."""
+    return "".join((addr or "").split()).lower()
 
 
 @router.post("/sync")
@@ -182,107 +193,129 @@ async def ingest_scraped_bookings(
     if not platform_type:
         raise HTTPException(400, f"지원하지 않는 확장 플랫폼: {payload.platform}")
 
-    # 확장 연결 찾기 (먼저 /connect 로 연결돼 있어야 함)
-    conn_stmt = (
-        select(PlatformConnection)
-        .join(Room, Room.id == PlatformConnection.room_id)
-        .where(
-            and_(
-                Room.user_id == user.id,
-                PlatformConnection.platform == platform_type,
-                PlatformConnection.connection_type == "extension",
-            )
-        )
-    )
-    conn = (await db.execute(conn_stmt)).scalar_one_or_none()
-    if not conn:
-        raise HTTPException(
-            400, "먼저 확장에서 해당 플랫폼을 연결(/connect)해주세요."
-        )
+    # 매물 그룹화: 주소 기준(이름 표기가 달라도 같은 주소면 하나의 매물).
+    #   key = 정규화된 주소(없으면 이름). value = {addr, name, items}
+    groups: dict[str, dict] = {}
+    for b in payload.bookings:
+        name = (b.room_label or payload.account_label or "33m2 미지정").strip() or "33m2 미지정"
+        addr = (b.room_addr or "").strip()
+        key = _norm_addr(addr) if addr else f"name:{name}"
+        g = groups.setdefault(key, {"addr": addr, "name": name, "items": []})
+        g["items"].append(b)
+        if addr and not g["addr"]:
+            g["addr"] = addr
 
-    if payload.account_label:
-        conn.account_label = payload.account_label
-
-    # 기존 예약 (이 연결 소속, 취소 제외)
-    existing_stmt = select(Booking).where(
-        and_(
-            Booking.connection_id == conn.id,
-            Booking.status != BookingStatus.cancelled,
-        )
+    # 사용자 기존 방 (주소·이름 양쪽으로 매핑 → 주소 우선)
+    rooms_res = await db.execute(
+        select(Room).where(Room.user_id == user.id, Room.is_active == True)  # noqa: E712
     )
-    existing = {b.ical_uid: b for b in (await db.execute(existing_stmt)).scalars().all()}
+    all_rooms = rooms_res.scalars().all()
+    rooms_by_addr = {_norm_addr(r.address): r for r in all_rooms if r.address}
+    rooms_by_name = {r.name: r for r in all_rooms}
 
     added = updated = removed = 0
-    seen: set[str] = set()
-    new_ranges: list[tuple] = []  # 신규 확정 예약 (교차차단 전파용)
+    affected_room_ids: set = set()
+    status_map = {
+        "confirmed": BookingStatus.confirmed,
+        "blocked": BookingStatus.blocked,
+        "cancelled": BookingStatus.cancelled,
+    }
 
-    for b in payload.bookings:
-        uid = f"{payload.platform}:{b.external_id}"
-        seen.add(uid)
-        try:
-            sd, ed = _parse_date(b.start_date), _parse_date(b.end_date)
-        except ValueError:
-            continue
-        status = {
-            "confirmed": BookingStatus.confirmed,
-            "blocked": BookingStatus.blocked,
-            "cancelled": BookingStatus.cancelled,
-        }.get(b.status, BookingStatus.confirmed)
+    for key, g in groups.items():
+        items, name, addr = g["items"], g["name"], g["addr"]
+        # 1) 방 find-or-create: 주소 일치 우선 → 이름 일치 → 신규
+        room = None
+        if addr:
+            room = rooms_by_addr.get(_norm_addr(addr))
+        if not room:
+            room = rooms_by_name.get(name)
+        if not room:
+            room = Room(
+                id=uuid.uuid4(), user_id=user.id, name=name, address=addr or None,
+                color=_ROOM_COLORS[len(rooms_by_name) % len(_ROOM_COLORS)],
+            )
+            db.add(room)
+            await db.flush()
+        # 주소를 비워둔 기존 방이면 채워서 다음부터 주소로 묶이게 함
+        if addr and not room.address:
+            room.address = addr
+        rooms_by_name[room.name] = room
+        if room.address:
+            rooms_by_addr[_norm_addr(room.address)] = room
+        affected_room_ids.add(room.id)
 
-        if uid in existing:
-            row = existing[uid]
-            if row.start_date != sd or row.end_date != ed or row.status != status:
-                row.start_date, row.end_date, row.status = sd, ed, status
-                row.summary = b.summary or row.summary
-                row.updated_at = datetime.utcnow()
-                updated += 1
-        else:
-            db.add(Booking(
-                id=uuid.uuid4(),
-                room_id=conn.room_id,
-                connection_id=conn.id,
-                ical_uid=uid,
-                platform=platform_type,
-                summary=b.summary or "예약",
-                start_date=sd,
-                end_date=ed,
-                status=status,
+        # 2) 그 방의 확장 연결 find-or-create
+        conn = (await db.execute(
+            select(PlatformConnection).where(and_(
+                PlatformConnection.room_id == room.id,
+                PlatformConnection.platform == platform_type,
             ))
-            added += 1
-            if status == BookingStatus.confirmed:
-                new_ranges.append((sd, ed))
+        )).scalar_one_or_none()
+        if not conn:
+            conn = PlatformConnection(
+                id=uuid.uuid4(), room_id=room.id, platform=platform_type,
+                connection_type="extension", is_active=True,
+            )
+            db.add(conn)
+            await db.flush()
+        conn.account_label = name
+        conn.last_synced_at = datetime.utcnow()
+        conn.sync_error = None
 
-    # 화면에서 사라진 예약 → 취소 처리
-    for uid, row in existing.items():
-        if uid not in seen:
-            row.status = BookingStatus.cancelled
-            removed += 1
+        # 3) 그 연결의 기존 예약을 (취소 포함) 전부 로드 → 재등장 시 insert 대신 update(되살리기)
+        #    (UNIQUE(connection_id, ical_uid)는 상태와 무관하므로, 취소된 행도 키를 점유함)
+        existing = {b.ical_uid: b for b in (await db.execute(select(Booking).where(
+            Booking.connection_id == conn.id,
+        ))).scalars().all()}
+        seen: set[str] = set()
+        for b in items:
+            uid = f"{payload.platform}:{b.external_id}"
+            if uid in seen:
+                continue  # 같은 그룹 내 중복 예약 ID → 스킵 (UNIQUE 위반 방지)
+            seen.add(uid)
+            try:
+                sd, ed = _parse_date(b.start_date), _parse_date(b.end_date)
+            except ValueError:
+                continue
+            status = status_map.get(b.status, BookingStatus.confirmed)
+            if uid in existing:
+                row = existing[uid]  # 기존(취소 포함) → 갱신·되살리기
+                if row.start_date != sd or row.end_date != ed or row.status != status:
+                    row.start_date, row.end_date, row.status = sd, ed, status
+                    row.summary = b.summary or row.summary
+                    row.updated_at = datetime.utcnow()
+                    updated += 1
+            else:
+                db.add(Booking(
+                    id=uuid.uuid4(), room_id=room.id, connection_id=conn.id,
+                    ical_uid=uid, platform=platform_type,
+                    summary=b.summary or "예약",
+                    start_date=sd, end_date=ed, status=status,
+                ))
+                added += 1
+        # 화면에서 사라진 예약 → 취소 (이미 취소된 건 제외)
+        for uid, row in existing.items():
+            if uid not in seen and row.status != BookingStatus.cancelled:
+                row.status = BookingStatus.cancelled
+                removed += 1
 
-    conn.last_synced_at = datetime.utcnow()
-    conn.sync_error = None
     await db.flush()
 
-    # 이중예약 감지
-    conflicts = await detect_conflicts(db, conn.room_id)
-
-    # 교차 차단 전파: 신규 확정 예약을 같은 방의 다른 플랫폼에 차단 요청
-    # (현재 차단 쓰기는 DRY-RUN — 엔드포인트 확정·법무 검토 후 활성화)
-    block_results = []
-    for (sd, ed) in new_ranges:
-        block_results.extend(
-            await propagate_block(db, conn.room_id, conn.id, sd, ed)
-        )
+    # 영향받은 방별 이중예약 감지
+    conflicts = 0
+    for rid in affected_room_ids:
+        conflicts += len(await detect_conflicts(db, rid))
 
     await db.commit()
 
     return {
         "ok": True,
         "platform": payload.platform,
-        "blocks_propagated": len(block_results),
+        "rooms": len(groups),
         "added": added,
         "updated": updated,
         "removed": removed,
-        "conflicts": len(conflicts),
+        "conflicts": conflicts,
     }
 
 

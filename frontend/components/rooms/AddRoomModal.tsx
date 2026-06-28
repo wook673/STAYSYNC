@@ -61,6 +61,27 @@ export function AddRoomModal({ onClose, onSuccess }: Props) {
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">청소 담당자</label>
+              <input
+                {...register("cleaner_name")}
+                placeholder="이름"
+                className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">담당자 연락처</label>
+              <input
+                {...register("cleaner_phone")}
+                type="tel"
+                placeholder="010-0000-0000"
+                className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+          <p className="-mt-2 text-xs text-gray-400">게스트 입실일에 담당자에게 청소 일정(퇴실일) 문자가 발송됩니다.</p>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">캘린더 색상</label>
             <div className="flex gap-2 flex-wrap">

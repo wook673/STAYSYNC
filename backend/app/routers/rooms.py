@@ -30,6 +30,8 @@ class RoomCreate(BaseModel):
     address: Optional[str] = None
     description: Optional[str] = None
     color: str = "#3B82F6"
+    cleaner_name: Optional[str] = None
+    cleaner_phone: Optional[str] = None
 
 
 class RoomUpdate(BaseModel):
@@ -37,6 +39,8 @@ class RoomUpdate(BaseModel):
     address: Optional[str] = None
     description: Optional[str] = None
     color: Optional[str] = None
+    cleaner_name: Optional[str] = None
+    cleaner_phone: Optional[str] = None
 
 
 class ConnectionCreate(BaseModel):
@@ -73,6 +77,8 @@ async def create_room(
         address=body.address,
         description=body.description,
         color=body.color,
+        cleaner_name=body.cleaner_name,
+        cleaner_phone=body.cleaner_phone,
     )
     db.add(room)
     await db.flush()
@@ -96,6 +102,10 @@ async def update_room(
         room.description = body.description
     if body.color is not None:
         room.color = body.color
+    if body.cleaner_name is not None:
+        room.cleaner_name = body.cleaner_name
+    if body.cleaner_phone is not None:
+        room.cleaner_phone = body.cleaner_phone
     await db.flush()
     await db.refresh(room, attribute_names=["connections"])
     return _room_dict(room)
@@ -193,6 +203,8 @@ def _room_dict(room: Room) -> dict:
         "address": room.address,
         "description": room.description,
         "color": room.color,
+        "cleaner_name": room.cleaner_name,
+        "cleaner_phone": room.cleaner_phone,
         "connections": [_connection_dict(c) for c in room.connections if c.is_active],
         "created_at": room.created_at.isoformat(),
     }

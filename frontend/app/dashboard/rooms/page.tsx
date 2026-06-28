@@ -1,7 +1,7 @@
 "use client"
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
-import { Plus, RefreshCw, Wifi, WifiOff, ChevronDown, ChevronUp, Loader2 } from "lucide-react"
+import { Plus, RefreshCw, Wifi, WifiOff, ChevronDown, ChevronUp, Loader2, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { roomsApi, calendarApi } from "@/lib/api"
 import { PLATFORM_LABELS, PLATFORM_COLORS, ICAL_GUIDES } from "@/lib/utils"
@@ -46,6 +46,18 @@ export default function RoomsPage() {
       toast.error("동기화에 실패했습니다.")
     } finally {
       setSyncingId(null)
+    }
+  }
+
+  const handleDeleteRoom = async (roomId: string, name: string) => {
+    if (!confirm(`'${name}' 매물을 삭제하시겠습니까?\n연결된 플랫폼과 예약 데이터도 함께 숨겨집니다.`)) return
+    try {
+      await roomsApi.delete(roomId)
+      qc.invalidateQueries({ queryKey: ["rooms"] })
+      qc.invalidateQueries({ queryKey: ["calendar-events"] })
+      toast.success("매물이 삭제되었습니다.")
+    } catch {
+      toast.error("삭제에 실패했습니다.")
     }
   }
 
@@ -124,6 +136,16 @@ export default function RoomsPage() {
                   <span className="text-xs text-gray-500">
                     {room.connections.length}개 연결됨
                   </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteRoom(room.id, room.name)
+                    }}
+                    title="매물 삭제"
+                    className="text-gray-300 hover:text-red-500 transition-colors p-1 -m-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                   {expandedRooms.has(room.id)
                     ? <ChevronUp className="w-4 h-4 text-gray-400" />
                     : <ChevronDown className="w-4 h-4 text-gray-400" />}

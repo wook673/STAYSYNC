@@ -1,10 +1,18 @@
 "use client"
 import { useState } from "react"
 import { useForm } from "react-hook-form"
-import { Loader2, Save } from "lucide-react"
+import Link from "next/link"
+import { Loader2, Save, CreditCard, ChevronRight, Bell } from "lucide-react"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store"
 import { toast } from "sonner"
+
+const PLAN_LABELS: Record<string, string> = {
+  trial: "무료 체험",
+  pro: "프로",
+  basic: "베이직",
+  free: "무료",
+}
 
 export default function ProfilePage() {
   const { user, setAuth } = useAuthStore()
@@ -70,6 +78,48 @@ export default function ProfilePage() {
           저장
         </button>
       </form>
+
+      {/* 청소 알림 */}
+      <div className="mt-10 pt-8 border-t">
+        <h2 className="text-base font-bold text-gray-900 mb-3">알림</h2>
+        <Link
+          href="/dashboard/settings/notifications"
+          className="flex items-center justify-between border rounded-xl px-4 py-4 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-emerald-50 rounded-lg flex items-center justify-center">
+              <Bell className="w-4.5 h-4.5 text-emerald-600" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">청소 알림</div>
+              <div className="text-xs text-gray-500 mt-0.5">입실일 자동 문자 · 솔라피 연동 · 메시지 템플릿</div>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+        </Link>
+      </div>
+
+      {/* 구독 및 결제 (사이드바에서 흡수) */}
+      <div className="mt-8 pt-8 border-t">
+        <h2 className="text-base font-bold text-gray-900 mb-3">구독 및 결제</h2>
+        <Link
+          href="/dashboard/settings/subscription"
+          className="flex items-center justify-between border rounded-xl px-4 py-4 hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center">
+              <CreditCard className="w-4.5 h-4.5 text-blue-600" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                현재 플랜: {PLAN_LABELS[user?.plan || ""] || user?.plan || "—"}
+              </div>
+              <div className="text-xs text-gray-500 mt-0.5">플랜 변경 · 결제 수단 관리</div>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+        </Link>
+      </div>
     </div>
   )
 }

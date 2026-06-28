@@ -6,6 +6,7 @@ APScheduler 기반 iCal 폴링 스케줄러
 import logging
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select, and_
 from sqlalchemy.orm import selectinload
 
@@ -13,6 +14,7 @@ from app.db.database import AsyncSessionLocal
 from app.models.models import PlatformConnection, Room, User
 from app.services.ical_engine import sync_connection, detect_conflicts
 from app.services.kakao_alimtalk import send_double_booking_alert
+from app.services.cleaning_notify import run_cleaning_notifications
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -76,6 +78,15 @@ async def sync_all_connections():
     logger.info("Scheduled sync complete.")
 
 
+async def run_daily_cleaning_notifications():
+    """매일 1회: 오늘 입실 예약 → 담당 청소인원에게 알림."""
+    async with AsyncSessionLocal() as db:
+        try:
+            await run_cleaning_notifications(db)
+        except Exception as e:  # noqa: BLE001
+            logger.error("청소 알림 작업 오류: %s", e)
+
+
 def start_scheduler():
     """앱 시작 시 스케줄러 등록"""
     scheduler.add_job(
@@ -85,6 +96,15 @@ def start_scheduler():
         name="iCal Polling Sync",
         replace_existing=True,
         misfire_grace_time=60,
+    )
+    # 청소 알림: 매일 오전 8시(KST 가정) 오늘 입실 예약 대상 발송
+    scheduler.add_job(
+        run_daily_cleaning_notifications,
+        trigger=CronTrigger(hour=8, minute=0),
+        id="cleaning_notify",
+        name="Daily Cleaning Notifications",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
     scheduler.start()
     logger.info(f"Scheduler started: syncing every {settings.ICAL_POLL_INTERVAL_MINUTES} minutes")

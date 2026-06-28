@@ -5,6 +5,7 @@
  *  - 시장 분석 탭: 33m2 반경 내 예약률 높은 매물 검색
  */
 import { analyzeMarket, geocode, getCurrentPosition } from "./market-analysis.js";
+import { PLATFORMS } from "./platforms.js";
 
 // ⚙️ 배포 설정: platforms.js 의 IS_PROD 와 동일하게 맞추세요.
 const IS_PROD = false;
@@ -111,10 +112,32 @@ async function doConnect(key, jwt, btn) {
   await refresh();
 }
 
+// PLATFORMS에서 기본 상태 생성 (SW 응답 없어도 목록은 항상 보이게)
+function baseStatus() {
+  const platforms = {};
+  for (const [key, p] of Object.entries(PLATFORMS)) {
+    platforms[key] = {
+      label: p.label, color: p.color, loginUrl: p.loginUrl,
+      autoMaintain: !!p.autoMaintain, loggedIn: false, lastConnectedAt: null,
+    };
+  }
+  return { ok: true, platforms };
+}
+
 async function refresh() {
-  const jwt = await getStaySyncJwt();
-  const status = await chrome.runtime.sendMessage({ type: "GET_STATUS" });
-  if (status?.ok) render(status, jwt);
+  let jwt = null;
+  try { jwt = await getStaySyncJwt(); } catch (e) { /* 무시 */ }
+
+  // 1) 즉시 기본 렌더 — 서비스워커 상태와 무관하게 5개 플랫폼 표시
+  render(baseStatus(), jwt);
+
+  // 2) 서비스워커 상태로 보강 (로그인 감지 / 연결 시각)
+  try {
+    const status = await chrome.runtime.sendMessage({ type: "GET_STATUS" });
+    if (status?.ok) render(status, jwt);
+  } catch (e) {
+    console.warn("[staySync] GET_STATUS 실패(목록은 기본 표시 유지):", e);
+  }
 }
 
 refresh();

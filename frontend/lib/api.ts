@@ -78,6 +78,20 @@ export const extensionApi = {
   connections: () => api.get("/api/extension/connections"),
 }
 
+export const notificationsApi = {
+  getSettings: () => api.get("/api/notifications/settings"),
+  updateSettings: (data: {
+    solapi_api_key?: string
+    solapi_api_secret?: string
+    solapi_sender?: string
+    cleaning_notify_enabled?: boolean
+    cleaning_msg_template?: string
+  }) => api.patch("/api/notifications/settings", data),
+  test: (to: string) => api.post("/api/notifications/test", { to }),
+  runCleaning: () => api.post("/api/notifications/cleaning/run"),
+  sendCleaning: (bookingId: string) => api.post(`/api/notifications/cleaning/${bookingId}`),
+}
+
 export const billingApi = {
   pricing: () => api.get("/api/billing/pricing"),
   subscribe: (authKey: string) => api.post("/api/billing/subscribe", { auth_key: authKey }),

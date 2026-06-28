@@ -58,3 +58,6 @@ _research/
 
 # 테스트 시드(토큰 포함) 금지
 frontend/public/_seed.html
+
+# TypeScript build cache
+*.tsbuildinfo
