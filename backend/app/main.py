@@ -6,6 +6,7 @@ from app.routers import auth, rooms, calendar, billing, extension, notifications
 from app.services.scheduler import start_scheduler, stop_scheduler
 from app.db.database import engine
 from app.models.models import Base
+from app.core.config import settings
 
 
 @asynccontextmanager
@@ -32,7 +33,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://staysync.kr"],
+    allow_origins=["http://localhost:3000", "https://staysync.kr", settings.APP_URL],
+    # Railway 배포 도메인(프론트) 허용
+    allow_origin_regex=r"https://.*\.up\.railway\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

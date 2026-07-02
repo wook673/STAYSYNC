@@ -29,7 +29,8 @@ export default function LoginPage() {
   const onSubmit = async (data: FormData) => {
     setLoading(true)
     try {
-      const res = await authApi.login(data)
+      // zod v3/resolver 타입 추론이 필드를 optional로 뽑는 문제 → 명시 캐스팅
+      const res = await authApi.login(data as { email: string; password: string })
       setAuth(res.data.user, res.data.access_token)
       toast.success(`환영합니다, ${res.data.user.name}님!`)
       router.push("/dashboard/calendar")

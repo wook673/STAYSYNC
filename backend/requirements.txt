@@ -17,3 +17,5 @@ python-multipart==0.0.9
 aiohttp==3.9.5
 supabase==2.4.6
 stripe==9.9.0
+aiosqlite==0.20.0
+bcrypt==4.1.3
