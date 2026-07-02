@@ -244,6 +244,7 @@ async function injectAndReadLocalStorage(cfg) {
 /** staySync 웹앱 탭의 localStorage에서 JWT를 읽어온다 (확장↔웹앱 브리지) */
 async function readStaySyncJwt() {
   const candidates = [
+    "https://frontend-production-a7a7.up.railway.app/*",
     "http://localhost:3000/*",
     "https://app.staysync.kr/*",
   ];

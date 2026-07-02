@@ -12,8 +12,8 @@
  */
 (function () {
   // ⚙️ 배포 설정: platforms.js 의 IS_PROD/DEV_API 와 동일하게 맞추세요.
-  const IS_PROD = false;
-  const STAYSYNC_API = IS_PROD ? "https://api.staysync.kr" : "http://localhost:8000";
+  const IS_PROD = true;
+  const STAYSYNC_API = IS_PROD ? "https://backend-production-f927.up.railway.app" : "http://localhost:8000";
   const host = location.hostname;
 
   // 플랫폼 식별

@@ -8,8 +8,8 @@ import { analyzeMarket, geocode, getCurrentPosition } from "./market-analysis.js
 import { PLATFORMS } from "./platforms.js";
 
 // ⚙️ 배포 설정: platforms.js 의 IS_PROD 와 동일하게 맞추세요.
-const IS_PROD = false;
-const STAYSYNC_WEB = IS_PROD ? "https://app.staysync.kr" : "http://localhost:3000";
+const IS_PROD = true;
+const STAYSYNC_WEB = IS_PROD ? "https://frontend-production-a7a7.up.railway.app" : "http://localhost:3000";
 
 // ── 탭 전환 ─────────────────────────────────────────────────────────────────
 document.querySelectorAll(".tab").forEach((tab) => {

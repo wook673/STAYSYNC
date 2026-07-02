@@ -16,7 +16,9 @@
     "http://localhost:3000/*",
     "http://localhost:8000/*",
     "https://app.staysync.kr/*",
-    "https://api.staysync.kr/*"
+    "https://api.staysync.kr/*",
+    "https://frontend-production-a7a7.up.railway.app/*",
+    "https://backend-production-f927.up.railway.app/*"
   ],
   "background": {
     "service_worker": "background.js",

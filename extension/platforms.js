@@ -63,13 +63,17 @@ export const PLATFORMS = {
 };
 
 // ⚙️ 배포 설정 ─────────────────────────────────────────────
-// Chrome 웹스토어 게시 시 IS_PROD = true 로만 변경하면 운영 도메인으로 전환됩니다.
-export const IS_PROD = false;
+// IS_PROD = true → Railway 운영 도메인 / false → localhost 개발
+export const IS_PROD = true;
 
 // 개발 백엔드 주소:
 //  - localhost:3000 → Next.js mock API (Python 불필요, 빠른 테스트용) ★기본
 //  - localhost:8000 → 실제 FastAPI 백엔드를 띄운 경우 이 값으로 변경
 export const DEV_API = "http://localhost:8000";
 
-export const STAYSYNC_API = IS_PROD ? "https://api.staysync.kr" : DEV_API;
-export const STAYSYNC_WEB = IS_PROD ? "https://app.staysync.kr" : "http://localhost:3000";
+// 운영(Railway) 도메인 — 커스텀 도메인(staysync.kr) 연결 시 여기만 교체
+export const PROD_API = "https://backend-production-f927.up.railway.app";
+export const PROD_WEB = "https://frontend-production-a7a7.up.railway.app";
+
+export const STAYSYNC_API = IS_PROD ? PROD_API : DEV_API;
+export const STAYSYNC_WEB = IS_PROD ? PROD_WEB : "http://localhost:3000";
